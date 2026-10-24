@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soil Moisture</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --card: #fffdf8; --ink: #2a2620; --muted: #7b7366; --line: #e4ddd0;
+    --accent: #2f7d5b; --blue: #3b82c4; --warn: #d9822b; --bad: #c0463a;
+    --dry: #d8b98a; --wet: #4a2f1d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17140f; --card: #211d16; --ink: #f0ebe0; --muted: #a39a89; --line: #342e24;
+            --accent: #5fc79a; --blue: #6aa9e0; --dry: #b9976a; --wet: #2a1a0f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+  h1 { font-size: 1.3rem; margin: 0 auto 0 0; }
+  .search { position: relative; flex: 1 1 220px; max-width: 340px; }
+  input, select, button { font: inherit; color: var(--ink); background: var(--card);
+         border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  input { width: 100%; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  .results { position: absolute; z-index: 10; left: 0; right: 0; top: 100%; margin-top: 4px;
+             background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .results div { padding: 8px 12px; cursor: pointer; }
+  .results div:hover { background: var(--bg); }
+  .results small { color: var(--muted); }
+  .grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .grid { grid-template-columns: 340px 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .card h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .hero { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+  .hero .emoji { font-size: 2.6rem; }
+  .hero .big { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+  .hero .loc { color: var(--muted); font-size: .9rem; }
+  .advice { margin: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 14px; }
+  .tile { background: var(--bg); border-radius: 12px; padding: 10px 12px; }
+  .tile b { display: block; font-size: 1.2rem; }
+  .tile span { color: var(--muted); font-size: .8rem; }
+  .full { grid-column: 1 / -1; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--muted); font: 11px system-ui, sans-serif; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+  .days { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px; }
+  .day { background: var(--bg); border-radius: 12px; padding: 8px 10px; text-align: center; font-size: .85rem; }
+  .day.today { outline: 2px solid var(--accent); }
+  .day b { display: block; }
+  .rain { color: var(--blue); }
+  .foot { color: var(--muted); font-size: .8rem; margin: 18px 0 6px; text-align: center; }
+  .err { color: var(--bad); padding: 20px; text-align: center; }
+  .drop { animation: fall 0.9s linear infinite; }
+  @keyframes fall { from { transform: translateY(-12px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(40px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .drop { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌱 Soil Moisture</h1>
+    <div class="search">
+      <input id="q" placeholder="Search a place…" autocomplete="off" aria-label="Search a place">
+      <div class="results" id="results" hidden></div>
+    </div>
+    <button id="locate" title="Use my location">📍</button>
+    <select id="soil" aria-label="Soil type">
+      <option value="sand">Sandy soil</option>
+      <option value="loam" selected>Loam</option>
+      <option value="clay">Clay soil</option>
+    </select>
+  </header>
+
+  <main id="app"><div class="err" style="color:var(--muted)">Loading…</div></main>
+  <p class="foot">Data: <a href="https://open-meteo.com" style="color:inherit">Open-Meteo.com</a> model data (not a physical sensor). Moisture values are modelled estimates for a ~10 km grid.</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { lat: null, lon: null, name: '', soil: localStorage.getItem('soil') || 'loam' };
+$('#soil').value = state.soil;
+
+// ---------- helpers ----------
+const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function soilColor(v, soil) {            // dry sand → dark wet earth
+  const t = Math.max(0, Math.min(1, (v - soil.wilt * 0.5) / (soil.fc * 1.25 - soil.wilt * 0.5)));
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const c = mix(hex(dark ? '#b9976a' : '#d8b98a'), hex(dark ? '#2a1a0f' : '#4a2f1d'), t);
+  return `rgb(${c})`;
+}
+const pct = v => (v * 100).toFixed(0) + '%';
+const dirName = d => ['N','NE','E','SE','S','SW','W','NW'][Math.round(d / 45) % 8];
+const dayName = (iso, i) => i === 5 ? 'Today' : new Date(iso + 'T12:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- soil cross-section ----------
+function soilSVG(d) {
+  const W = 300, H = 300, top = 40;
+  // Visual heights: not to scale (otherwise the 54 cm layer swallows everything)
+  const hs = [28, 34, 48, 66, 84];
+  let y = top, out = '';
+  d.layers.forEach((l, i) => {
+    out += `<rect x="20" y="${y}" width="${W - 40}" height="${hs[i]}" fill="${soilColor(l.value, d.soil)}"/>`;
+    const light = l.value < (d.soil.wilt + d.soil.fc) / 2;
+    out += `<text x="30" y="${y + hs[i] / 2 + 4}" style="fill:${light ? '#3a2a18' : '#f3e9d9'}">${l.label}</text>`;
+    out += `<text x="${W - 30}" y="${y + hs[i] / 2 + 4}" text-anchor="end" style="fill:${light ? '#3a2a18' : '#f3e9d9'};font-weight:700;font-size:13px">${pct(l.value)}</text>`;
+    y += hs[i];
+  });
+  // sky + grass line
+  const sky = d.now.isDay ? '#9fd0f0' : '#25304a';
+  let sky_el = `<rect x="20" y="0" width="${W - 40}" height="${top}" rx="10" fill="${sky}"/>`;
+  sky_el += d.now.isDay ? `<circle cx="${W - 55}" cy="18" r="9" fill="#ffd75e"/>` : `<circle cx="${W - 55}" cy="18" r="8" fill="#e8e4cf"/>`;
+  let drops = '';
+  if (d.now.precipitation > 0) {
+    for (let i = 0; i < 12; i++)
+      drops += `<line class="drop" x1="${40 + i * 21}" x2="${37 + i * 21}" y1="6" y2="16" stroke="#3b82c4" stroke-width="2" stroke-linecap="round" style="animation-delay:${(i % 5) * 0.18}s"/>`;
+  }
+  const grass = `<rect x="20" y="${top - 5}" width="${W - 40}" height="6" fill="#4a9d5f"/>`;
+  return `<svg viewBox="0 0 ${W} ${top + hs.reduce((a, b) => a + b) + 8}" role="img" aria-label="Soil moisture by depth">${sky_el}${drops}${grass}${out}</svg>`;
+}
+
+// ---------- charts ----------
+function moistureChart(d) {
+  const W = 640, H = 240, m = { l: 38, r: 10, t: 10, b: 24 };
+  const s = d.series, n = s.length;
+  const maxV = Math.max(d.soil.fc * 1.3, ...s.map(p => p.surface));
+  const x = i => m.l + (i / (n - 1)) * (W - m.l - m.r);
+  const y = v => m.t + (1 - v / maxV) * (H - m.t - m.b);
+  const line = (k, col, w = 2) => `<polyline fill="none" stroke="${col}" stroke-width="${w}" stroke-linejoin="round" points="${s.map((p, i) => `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join(' ')}"/>`;
+  let g = `<rect x="${m.l}" y="${y(d.soil.fc)}" width="${W - m.l - m.r}" height="${y(d.soil.wilt) - y(d.soil.fc)}" fill="var(--accent)" opacity=".12"/>`;
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(d.soil.fc)}" y2="${y(d.soil.fc)}" stroke="var(--accent)" stroke-dasharray="4 4" opacity=".6"/>`;
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(d.soil.wilt)}" y2="${y(d.soil.wilt)}" stroke="var(--bad)" stroke-dasharray="4 4" opacity=".6"/>`;
+  g += `<text x="${W - m.r}" y="${y(d.soil.fc) - 4}" text-anchor="end">field capacity</text>`;
+  g += `<text x="${W - m.r}" y="${y(d.soil.wilt) + 12}" text-anchor="end">wilting point</text>`;
+  for (let v = 0; v <= maxV; v += 0.1) g += `<text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${pct(v)}</text>`;
+  // day ticks
+  s.forEach((p, i) => { if (p.t.endsWith('T00:00')) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${new Date(p.t).toLocaleDateString(undefined, { weekday: 'short' })}</text>`; });
+  g += line('deep', '#8a6a4a', 1.5) + line('rootZone', 'var(--accent)', 2.5) + line('surface', 'var(--blue)', 1.5);
+  g += `<line x1="${x(d.nowIndex)}" x2="${x(d.nowIndex)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink)" opacity=".5"/>`;
+  g += `<text x="${x(d.nowIndex) + 4}" y="${m.t + 10}">now</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Soil moisture over time">${g}</svg>
+  <div class="legend"><span><i style="background:var(--accent)"></i>Root zone (0–27 cm)</span><span><i style="background:var(--blue)"></i>Surface (0–1 cm)</span><span><i style="background:#8a6a4a"></i>Deep (27–81 cm)</span></div>`;
+}
+
+function rainChart(d) {
+  const W = 640, H = 130, m = { l: 30, r: 6, t: 8, b: 20 };
+  const maxR = Math.max(5, ...d.daily.map(x => x.rain || 0));
+  const bw = (W - m.l - m.r) / d.daily.length;
+  let g = '';
+  d.daily.forEach((x, i) => {
+    const h = ((x.rain || 0) / maxR) * (H - m.t - m.b);
+    g += `<rect x="${m.l + i * bw + bw * 0.2}" y="${H - m.b - h}" width="${bw * 0.6}" height="${h}" rx="3" fill="var(--blue)" opacity="${i < 5 ? .55 : 1}"/>`;
+    if (x.rain > 0) g += `<text x="${m.l + i * bw + bw / 2}" y="${H - m.b - h - 3}" text-anchor="middle">${x.rain.toFixed(1)}</text>`;
+    g += `<text x="${m.l + i * bw + bw / 2}" y="${H - 5}" text-anchor="middle">${dayName(x.date, i).split(' ')[0]}</text>`;
+  });
+  g += `<text x="${m.l - 4}" y="${m.t + 6}" text-anchor="end">mm</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily rainfall">${g}</svg>`;
+}
+
+// ---------- render ----------
+function render(d) {
+  const a = d.analysis, n = d.now;
+  $('#app').innerHTML = `
+  <div class="grid">
+    <section class="card">
+      <h2>Soil profile now</h2>
+      ${soilSVG(d)}
+      <div class="legend">Layers not drawn to scale · values are volumetric water content</div>
+    </section>
+
+    <section class="card">
+      <div class="hero">
+        <div class="emoji">${a.emoji}</div>
+        <div>
+          <div class="big">${a.headline} <span style="font-weight:400;color:var(--muted);font-size:1rem">· ${a.availablePct}% of available water</span></div>
+          <div class="loc">${esc(state.name)} · ${esc(d.soil.name)} soil</div>
+        </div>
+      </div>
+      <p class="advice">${esc(a.advice)}</p>
+      <div class="tiles">
+        <div class="tile"><b>${n.airTemp.toFixed(1)}°C</b><span>Air temperature</span></div>
+        <div class="tile"><b>${n.soilTemp.toFixed(1)}°C</b><span>Soil temp (6 cm)</span></div>
+        <div class="tile"><b>${n.humidity}%</b><span>Air humidity</span></div>
+        <div class="tile"><b>${n.windSpeed.toFixed(0)} km/h ${dirName(n.windDir)}</b><span>Wind · gusts ${n.windGusts.toFixed(0)}</span></div>
+        <div class="tile"><b>${n.precipitation.toFixed(1)} mm</b><span>Rain this hour</span></div>
+        <div class="tile"><b>${pct(a.rootZone)}</b><span>Root-zone moisture</span></div>
+      </div>
+    </section>
+
+    <section class="card full">
+      <h2>Soil moisture · past 5 days &amp; 7-day forecast</h2>
+      ${moistureChart(d)}
+    </section>
+
+    <section class="card full">
+      <h2>Daily rainfall (mm)</h2>
+      ${rainChart(d)}
+    </section>
+
+    <section class="card full">
+      <h2>Daily outlook</h2>
+      <div class="days">
+        ${d.daily.slice(5).map((x, i) => `
+          <div class="day ${i === 0 ? 'today' : ''}">
+            <b>${dayName(x.date, i + 5)}</b>
+            ${x.tMax.toFixed(0)}° / ${x.tMin.toFixed(0)}°<br>
+            <span class="rain">💧 ${(x.rain || 0).toFixed(1)} mm</span><br>
+            💨 ${x.wind.toFixed(0)} km/h<br>
+            ☀️ ET ${x.et0 != null ? x.et0.toFixed(1) : '–'} mm
+          </div>`).join('')}
+      </div>
+    </section>
+  </div>`;
+}
+
+async function load() {
+  if (state.lat == null) return;
+  $('#app').style.opacity = .5;
+  try {
+    const r = await fetch(`/api/weather?lat=${state.lat}&lon=${state.lon}&soil=${state.soil}`);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Request failed');
+    render(d);
+  } catch (e) {
+    $('#app').innerHTML = `<div class="err">Couldn’t load data: ${esc(e.message)}</div>`;
+  }
+  $('#app').style.opacity = 1;
+}
+
+function setPlace(lat, lon, name) {
+  Object.assign(state, { lat, lon, name });
+  localStorage.setItem('place', JSON.stringify({ lat, lon, name }));
+  load();
+}
+
+// ---------- events ----------
+let t;
+$('#q').addEventListener('input', e => {
+  clearTimeout(t);
+  const q = e.target.value;
+  if (q.length < 2) { $('#results').hidden = true; return; }
+  t = setTimeout(async () => {
+    try {
+      const { results } = await (await fetch('/api/search?q=' + encodeURIComponent(q))).json();
+      const box = $('#results');
+      box.innerHTML = results.map((r, i) => `<div data-i="${i}">${esc(r.name)} <small>${esc([r.admin, r.country].filter(Boolean).join(', '))}</small></div>`).join('') || '<div><small>No matches</small></div>';
+      box.hidden = false;
+      box.onclick = ev => {
+        const el = ev.target.closest('[data-i]'); if (!el) return;
+        const r = results[el.dataset.i];
+        $('#q').value = ''; box.hidden = true;
+        setPlace(r.lat, r.lon, `${r.name}${r.country ? ', ' + r.country : ''}`);
+      };
+    } catch {}
+  }, 250);
+});
+document.addEventListener('click', e => { if (!e.target.closest('.search')) $('#results').hidden = true; });
+$('#soil').addEventListener('change', e => { state.soil = e.target.value; localStorage.setItem('soil', state.soil); load(); });
+$('#locate').addEventListener('click', () => {
+  navigator.geolocation?.getCurrentPosition(
+    p => setPlace(+p.coords.latitude.toFixed(3), +p.coords.longitude.toFixed(3), 'Your location'),
+    () => alert('Location permission denied. Use the search box instead.'));
+});
+
+// ---------- boot ----------
+(function boot() {
+  const saved = JSON.parse(localStorage.getItem('place') || 'null');
+  if (saved) return setPlace(saved.lat, saved.lon, saved.name);
+  setPlace(40.417, -3.704, 'Madrid, Spain'); // fallback; replaced by the search or 📍 button
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "soil-moisture-dashboard",
+  "version": "1.0.0",
+  "description": "Soil moisture, temperature, rain and wind dashboard powered by Open-Meteo",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
