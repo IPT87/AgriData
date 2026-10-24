@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soil Moisture</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --page: #f9f9f7; --card: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --wash: rgba(11,11,11,.05);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s7: #6250d6;   /* validated categorical slots */
+    --accent: var(--s1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d0d0d; --card: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --wash: rgba(255,255,255,.06);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s7: #9085e9;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }   /* class display rules must never beat the hidden attribute */
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1800px; margin: 0 auto; padding: 16px clamp(12px, 2.5vw, 40px); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .muted { color: var(--ink2); }
+
+  header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  h1 { font-size: 1.3rem; margin: 0 auto 0 0; min-width: 250px; white-space: nowrap; }
+  .search { position: relative; flex: 1 1 160px; min-width: 160px; max-width: 360px; }
+  /* fixed control widths so the header doesn't reflow when the language (and label lengths) change */
+  header input, header select, header button { font-size: .95rem; }
+  #plant { width: 220px; } #soil { width: 138px; } #lang { width: 110px; }
+  #locate { min-width: 42px; } #mapBtn { min-width: 88px; } #saveBtn { min-width: 138px; }
+  header select { text-overflow: ellipsis; }
+  input, select, button { font: inherit; color: var(--ink); background: var(--card);
+         border: 1px solid var(--border); border-radius: 10px; padding: 7px 12px; }
+  input { width: 100%; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, input:focus-visible, select:focus-visible, svg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .results { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin-top: 4px;
+             background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+             box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+  .results div { padding: 8px 12px; cursor: pointer; }
+  .results div:hover, .results div.hl { background: var(--wash); }
+  .results small { color: var(--ink2); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .chip { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; background: var(--card); overflow: hidden; }
+  .chip button { border: 0; border-radius: 0; background: transparent; padding: 4px 10px; }
+  .chip .x { padding: 4px 9px 4px 4px; color: var(--ink2); }
+  .chip.on { border-color: var(--accent); }
+  .chip.on button:first-child { font-weight: 600; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); margin: 0 0 10px; font-weight: 600; }
+  #map { height: 320px; border-radius: 12px; background: var(--wash); display: grid; place-items: center; color: var(--ink2); text-align: center; padding: 10px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+  .grid > .card { margin: 0; min-width: 0; }
+  @media (min-width: 780px) { .grid { grid-template-columns: 360px minmax(0, 1fr); } }
+  #soilPanel svg { max-width: 360px; margin: 0 auto; }
+  .full { grid-column: 1 / -1; }
+
+  .scrub { position: sticky; top: 0; z-index: 15; padding: 10px 14px; }
+  .scrubrow { display: flex; gap: 10px; align-items: center; }
+  .scrubrow button { padding: 5px 12px; min-width: 42px; }
+  .rangebox { position: relative; flex: 1; padding-bottom: 14px; }
+  input[type=range] { width: 100%; padding: 0; border: 0; background: transparent; accent-color: var(--accent); margin: 6px 0 0; display: block; }
+  .nowtick { position: absolute; top: 0; height: 26px; width: 2px; background: var(--ink2); opacity: .5; pointer-events: none; }
+  .ends { position: absolute; left: 0; right: 0; bottom: -2px; display: flex; justify-content: space-between; font-size: .72rem; color: var(--ink2); pointer-events: none; }
+  .tl { min-width: 150px; text-align: right; line-height: 1.25; }
+  .tl b { display: block; }
+  .tl span { font-size: .8rem; color: var(--ink2); }
+
+  .hero { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; }
+  .hero .emoji { font-size: 2.6rem; }
+  .hero .big { font-size: 1.55rem; font-weight: 700; line-height: 1.15; }
+  .hero .loc { color: var(--ink2); font-size: .9rem; }
+  .tag { display: inline-block; font-size: .72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--wash); color: var(--ink2); margin-bottom: 4px; }
+  .advice { margin: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 14px; }
+  .tile { background: var(--wash); border-radius: 12px; padding: 10px 12px; }
+  .tile b { display: block; font-size: 1.15rem; }
+  .tile span { color: var(--ink2); font-size: .8rem; }
+
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--muted); font: 11px system-ui, sans-serif; }
+  .chartwrap { position: relative; overflow-x: auto; }
+  #mChart { touch-action: pan-y; cursor: crosshair; }
+  #mChart text { paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+  .tip { position: absolute; top: 6px; pointer-events: none; z-index: 5; background: var(--card); border: 1px solid var(--border);
+         box-shadow: 0 4px 16px rgba(0,0,0,.18); border-radius: 10px; padding: 8px 10px; font-size: .82rem; min-width: 160px; }
+  .tip .th { color: var(--ink2); margin-bottom: 4px; }
+  .tip .tr { display: flex; align-items: center; gap: 8px; }
+  .tip .tr strong { min-width: 2.6em; }
+  .tip .tr span.n { color: var(--ink2); }
+  .tip .key { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+  .legend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .legend button { display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px; font-size: .85rem; border-radius: 999px; }
+  .legend button[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+  .legend .key { width: 16px; height: 3px; border-radius: 2px; }
+  .legend button[aria-pressed] { background: var(--card); color: var(--ink); border-color: var(--border); }
+  .note { font-size: .82rem; color: var(--ink2); margin: 8px 0 0; }
+  details { margin-top: 10px; font-size: .88rem; }
+  summary { cursor: pointer; color: var(--ink2); }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+
+  .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+  .day { flex: 1 0 104px; text-align: left; padding: 8px 10px; font-size: .82rem; line-height: 1.4; scroll-snap-align: center; }
+  .day b { display: block; font-size: .85rem; }
+  .day .td { font-weight: 400; opacity: .8; }
+  .day[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .day[aria-pressed="true"] .bar { background: rgba(255,255,255,.3); }
+  .day[aria-pressed="true"] .bar i { background: #fff; }
+  .bar { display: block; height: 5px; border-radius: 3px; background: var(--wash); margin: 3px 0; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--s1); border-radius: 3px; }
+  .minis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top: 12px; }
+  .mini h3 { font-size: .85rem; margin: 0; display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+  .mini h3 .ro { font-weight: 400; color: var(--ink2); font-variant-numeric: tabular-nums; }
+  .mini svg { cursor: crosshair; touch-action: pan-y; }
+
+  .cmp { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .cmpcard { text-align: left; padding: 10px 12px; border-radius: 12px; }
+  .cmpcard b { display: block; }
+  .cmpcard .row { display: flex; align-items: baseline; gap: 8px; font-size: .85rem; color: var(--ink2); }
+  .cmpcard .row strong { color: var(--ink); font-size: 1.05rem; }
+
+  @media (max-width: 600px) {
+    .scrubrow { flex-wrap: wrap; }
+    .scrubrow .rangebox { order: 3; flex: 1 1 100%; }
+    .tl { flex: 1; text-align: left; min-width: 0; }
+    .hero .big { font-size: 1.3rem; }
+  }
+  .foot { color: var(--ink2); font-size: .8rem; margin: 18px 0 6px; text-align: center; }
+  .foot a { color: inherit; }
+  .err { color: var(--ink); background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+  #app { transition: opacity .15s; }
+  .drop { animation: fall .9s linear infinite; }
+  @keyframes fall { from { transform: translateY(-12px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(40px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .drop { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌱 Soil Moisture</h1>
+    <div class="search">
+      <input id="q" autocomplete="off">
+      <div class="results" id="results" hidden></div>
+    </div>
+    <button id="locate">📍</button>
+    <button id="mapBtn" aria-pressed="false">🗺 Map</button>
+    <button id="saveBtn" aria-pressed="false">☆ Save</button>
+    <select id="plant"></select>
+    <select id="soil"></select>
+    <select id="lang"></select>
+  </header>
+
+  <div id="saved" class="chips" hidden></div>
+  <section id="mapCard" class="card" hidden>
+    <h2></h2>
+    <div id="map"></div>
+  </section>
+  <section id="compare" class="card" hidden></section>
+
+  <section id="scrub" class="card scrub" hidden>
+    <div class="scrubrow">
+      <button id="play">▶</button>
+      <div class="rangebox">
+        <input id="range" type="range" min="0" max="0" value="0" step="1">
+        <div class="nowtick" id="nowtick"></div>
+        <div class="ends"><span></span><span></span></div>
+      </div>
+      <div class="tl"><b id="tlabel"></b><span id="trel"></span></div>
+      <button id="nowBtn"></button>
+    </div>
+  </section>
+
+  <main id="app"></main>
+  <p class="foot"></p>
+</div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+// ---------- languages ----------
+const LANGS = {
+  en: { label: 'English', locale: 'en-GB' },
+  es: { label: 'Español', locale: 'es-ES' },
+  fr: { label: 'Français', locale: 'fr-FR' },
+  de: { label: 'Deutsch', locale: 'de-DE' },
+  pt: { label: 'Português', locale: 'pt-BR' },
+  bg: { label: 'Български', locale: 'bg-BG' },
+};
+// To add a language: add it to LANGS and copy one block below with all keys translated.
+const I18N = {
+  en: {
+    title: 'Soil Moisture', search: 'Search a place…', searchAria: 'Search a place', locate: 'Use my location',
+    mapBtn: 'Map', mapTitle: 'Pick a place on a map', save: 'Save', saved: 'Saved', saveTitle: 'Save this place to compare later',
+    plantAria: 'Plant type', soilAria: 'Soil type', langAria: 'Language',
+    'soil.sand': 'Sandy soil', 'soil.loam': 'Loam soil', 'soil.clay': 'Clay soil',
+    'plant.general': 'General (top 27 cm)', 'plant.lawn': 'Lawn / grass', 'plant.veg': 'Vegetable garden', 'plant.tomato': 'Tomatoes & peppers', 'plant.shrub': 'Shrubs & flowers', 'plant.tree': 'Olive & fruit trees',
+    'short.general': 'the top 27 cm', 'short.lawn': 'the lawn', 'short.veg': 'the vegetables', 'short.tomato': 'tomatoes and peppers', 'short.shrub': 'shrubs and flowers', 'short.tree': 'the trees',
+    mapHint: 'Click anywhere on the map to check that spot', mapLoading: 'Loading map…',
+    mapFail: 'The map needs internet access to unpkg.com and openstreetmap.org, and they didn’t load. Search still works.',
+    timeControl: 'Time control', play: 'Play time-lapse', pause: 'Pause', playTitle: 'Play through time',
+    rangeAria: 'Time: drag to look at the past or the forecast', now: 'Now', ago5: '5 days ago', ahead7: '+7 days', loading: 'Loading…',
+    footer: 'Data: {link} model data (not a physical sensor), ~10 km grid. Plant and soil presets are rough, typical values.',
+    'st.thirsty': 'Bone dry', 'st.drying': 'Getting dry', 'st.happy': 'Nicely moist', 'st.saturated': 'Saturated',
+    'adv.saturated': 'Soil is at or above field capacity. Skip watering: extra water would run off or drain below the roots.',
+    'adv.happyDry': 'Plenty of plant-available water for {plant}. It’s forecast to drop below your watering threshold around {when}.',
+    'adv.happyOk': 'Plenty of plant-available water for {plant}. No watering is needed within the forecast window.',
+    'adv.rain': 'The soil is dry, but about {mm} mm of rain is forecast in the next 48 h. Consider waiting.',
+    'adv.thirsty': 'Risk of water stress for {plant}. Water deeply, and soon.',
+    'adv.drying': 'Soil is drying out. Plan to water within a day or two, especially if roots are shallow.',
+    'adv.et': ' Evaporative demand that day is about {mm} mm.',
+    availableWater: 'of available water',
+    'tile.air': 'Air temperature', 'tile.soilTemp': 'Soil temp (6 cm)', 'tile.rh': 'Air humidity', 'tile.wind': 'Wind · gusts {g} km/h',
+    'tile.rain': 'Rain this hour · {mm} mm next 48 h', 'tile.rz': 'Root-zone moisture',
+    'rel.future': 'Forecast · in {s}', 'rel.past': 'Past · {s} ago', 'unit.d': 'd', 'unit.h': 'h',
+    soilProfile: 'Soil profile', roots: 'roots to {n} cm', soilImgAria: 'Soil moisture by depth at {when}',
+    soilNote: 'Layers aren’t drawn to scale. Numbers are volumetric water content. The dashed line shows how deep your plant’s roots reach.',
+    chartTitle: 'Soil moisture · past 5 days & 7-day forecast',
+    'lg.rz': 'Root zone (0–{n} cm)', 'lg.surface': 'Surface (0–1 cm)', 'lg.deep': 'Deep (27–81 cm)', rzShort: 'Root zone',
+    'c.past': 'past 5 days', 'c.forecast': 'forecast', 'c.fc': 'field capacity', 'c.thr': 'water below this', 'c.wp': 'wilting point', 'c.now': 'now',
+    chartAria: 'Soil moisture over time. Use the left and right arrow keys to move through time.', 'tip.rain': 'Rain {mm} mm',
+    viewTable: 'View as table', 'tbl.day': 'Day', 'tbl.rz': 'Root zone', 'tbl.surface': 'Surface', 'tbl.deep': 'Deep', 'tbl.rain': 'Rain mm', 'tbl.maxmin': 'Max / min',
+    'tbl.caption': 'Daily average soil moisture and weather',
+    daysTitle: 'Daily outlook · pick a day', today: 'today', et: 'ET', hourByHour: 'hour by hour',
+    'm.rain': 'Rain', 'm.temp': 'Air temperature', 'm.wind': 'Wind',
+    miniHint: 'Hover or tap a chart to read values; click to jump the whole page to that hour.', miniAria: '{title} by hour',
+    removeAria: 'Remove {name}', compare: 'Compare',
+    cmpTitle: 'Compare saved places · {plant} · {soil} · now', cmpAvail: 'available water', cmpRain: 'Rain next 48 h: {mm} mm',
+    cmpNote: 'The line shows root-zone moisture from 5 days ago to 7 days ahead; the dashed horizontal line is the “water below this” level. Click a card to open that place.',
+    cmpFail: 'Couldn’t load: {msg}',
+    'err.html': 'The server didn’t answer with data (HTTP {code}). Start it with “node server.js” and open http://localhost:3000 in the browser, not the HTML file directly.',
+    'err.nodata': 'No soil moisture data for this spot (it may be water or ice). Try a point on land.',
+    'err.load': 'Couldn’t load data: {msg}',
+    'geo.none': 'Your browser has no location support. Use the search box instead.', 'geo.denied': 'Location permission denied. Use the search box or the map instead.',
+    yourLocation: 'Your location', noMatches: 'No matches', pin: 'Pin {lat}, {lon}',
+  },
+  es: {
+    title: 'Humedad del suelo', search: 'Buscar un lugar…', searchAria: 'Buscar un lugar', locate: 'Usar mi ubicación',
+    mapBtn: 'Mapa', mapTitle: 'Elegir un lugar en el mapa', save: 'Guardar', saved: 'Guardado', saveTitle: 'Guarda este lugar para compararlo después',
+    plantAria: 'Tipo de planta', soilAria: 'Tipo de suelo', langAria: 'Idioma',
+    'soil.sand': 'Suelo arenoso', 'soil.loam': 'Suelo franco', 'soil.clay': 'Suelo arcilloso',
+    'plant.general': 'General (primeros 27 cm)', 'plant.lawn': 'Césped', 'plant.veg': 'Huerto de hortalizas', 'plant.tomato': 'Tomates y pimientos', 'plant.shrub': 'Arbustos y flores', 'plant.tree': 'Olivos y frutales',
+    'short.general': 'los primeros 27 cm', 'short.lawn': 'el césped', 'short.veg': 'las hortalizas', 'short.tomato': 'los tomates y pimientos', 'short.shrub': 'los arbustos y las flores', 'short.tree': 'los árboles',
+    mapHint: 'Haz clic en cualquier punto del mapa para consultarlo', mapLoading: 'Cargando mapa…',
+    mapFail: 'El mapa necesita acceso a internet a unpkg.com y openstreetmap.org, y no se han cargado. La búsqueda sigue funcionando.',
+    timeControl: 'Control del tiempo', play: 'Reproducir línea de tiempo', pause: 'Pausa', playTitle: 'Recorrer el tiempo',
+    rangeAria: 'Tiempo: arrastra para ver el pasado o la previsión', now: 'Ahora', ago5: 'hace 5 días', ahead7: '+7 días', loading: 'Cargando…',
+    footer: 'Datos: {link}, datos de modelos (no son un sensor físico), cuadrícula de ~10 km. Los ajustes de plantas y suelos son valores aproximados y típicos.',
+    'st.thirsty': 'Seco por completo', 'st.drying': 'Secándose', 'st.happy': 'Bien húmedo', 'st.saturated': 'Saturado',
+    'adv.saturated': 'El suelo está en capacidad de campo o por encima. No riegues: el agua extra se escurriría o drenaría por debajo de las raíces.',
+    'adv.happyDry': 'Hay agua disponible de sobra para {plant}. Se prevé que baje de tu umbral de riego sobre {when}.',
+    'adv.happyOk': 'Hay agua disponible de sobra para {plant}. No hace falta regar durante el periodo de previsión.',
+    'adv.rain': 'El suelo está seco, pero se prevén unos {mm} mm de lluvia en las próximas 48 h. Considera esperar.',
+    'adv.thirsty': 'Riesgo de estrés hídrico para {plant}. Riega a fondo y pronto.',
+    'adv.drying': 'El suelo se está secando. Planea regar en uno o dos días, sobre todo si las raíces son superficiales.',
+    'adv.et': ' La demanda evaporativa de ese día ronda los {mm} mm.',
+    availableWater: 'del agua disponible',
+    'tile.air': 'Temperatura del aire', 'tile.soilTemp': 'Temp. del suelo (6 cm)', 'tile.rh': 'Humedad del aire', 'tile.wind': 'Viento · rachas {g} km/h',
+    'tile.rain': 'Lluvia esta hora · {mm} mm en 48 h', 'tile.rz': 'Humedad de la zona radicular',
+    'rel.future': 'Previsión · dentro de {s}', 'rel.past': 'Pasado · hace {s}', 'unit.d': 'd', 'unit.h': 'h',
+    soilProfile: 'Perfil del suelo', roots: 'raíces hasta {n} cm', soilImgAria: 'Humedad del suelo por profundidad el {when}',
+    soilNote: 'Las capas no están a escala. Los números son contenido volumétrico de agua. La línea discontinua indica hasta dónde llegan las raíces de tu planta.',
+    chartTitle: 'Humedad del suelo · últimos 5 días y previsión a 7 días',
+    'lg.rz': 'Zona radicular (0–{n} cm)', 'lg.surface': 'Superficie (0–1 cm)', 'lg.deep': 'Profundo (27–81 cm)', rzShort: 'Zona radicular',
+    'c.past': 'últimos 5 días', 'c.forecast': 'previsión', 'c.fc': 'capacidad de campo', 'c.thr': 'regar por debajo', 'c.wp': 'punto de marchitez', 'c.now': 'ahora',
+    chartAria: 'Humedad del suelo a lo largo del tiempo. Usa las flechas izquierda y derecha para moverte en el tiempo.', 'tip.rain': 'Lluvia {mm} mm',
+    viewTable: 'Ver como tabla', 'tbl.day': 'Día', 'tbl.rz': 'Zona radicular', 'tbl.surface': 'Superficie', 'tbl.deep': 'Profundo', 'tbl.rain': 'Lluvia mm', 'tbl.maxmin': 'Máx. / mín.',
+    'tbl.caption': 'Humedad media diaria del suelo y tiempo',
+    daysTitle: 'Previsión diaria · elige un día', today: 'hoy', et: 'ET', hourByHour: 'hora a hora',
+    'm.rain': 'Lluvia', 'm.temp': 'Temperatura del aire', 'm.wind': 'Viento',
+    miniHint: 'Pasa el cursor o toca un gráfico para leer valores; haz clic para llevar toda la página a esa hora.', miniAria: '{title} por hora',
+    removeAria: 'Quitar {name}', compare: 'Comparar',
+    cmpTitle: 'Comparar lugares guardados · {plant} · {soil} · ahora', cmpAvail: 'de agua disponible', cmpRain: 'Lluvia en las próximas 48 h: {mm} mm',
+    cmpNote: 'La línea muestra la humedad de la zona radicular desde hace 5 días hasta dentro de 7; la línea discontinua horizontal es el nivel “regar por debajo”. Haz clic en una tarjeta para abrir ese lugar.',
+    cmpFail: 'No se pudo cargar: {msg}',
+    'err.html': 'El servidor no respondió con datos (HTTP {code}). Inícialo con “node server.js” y abre http://localhost:3000 en el navegador, no el archivo HTML directamente.',
+    'err.nodata': 'No hay datos de humedad del suelo para este punto (puede ser agua o hielo). Prueba con un punto en tierra firme.',
+    'err.load': 'No se pudieron cargar los datos: {msg}',
+    'geo.none': 'Tu navegador no admite la ubicación. Usa el buscador.', 'geo.denied': 'Permiso de ubicación denegado. Usa el buscador o el mapa.',
+    yourLocation: 'Tu ubicación', noMatches: 'Sin resultados', pin: 'Punto {lat}, {lon}',
+  },
+  fr: {
+    title: 'Humidité du sol', search: 'Rechercher un lieu…', searchAria: 'Rechercher un lieu', locate: 'Utiliser ma position',
+    mapBtn: 'Carte', mapTitle: 'Choisir un lieu sur une carte', save: 'Enregistrer', saved: 'Enregistré', saveTitle: 'Enregistrer ce lieu pour le comparer plus tard',
+    plantAria: 'Type de plante', soilAria: 'Type de sol', langAria: 'Langue',
+    'soil.sand': 'Sol sableux', 'soil.loam': 'Sol limoneux', 'soil.clay': 'Sol argileux',
+    'plant.general': 'Général (27 premiers cm)', 'plant.lawn': 'Pelouse', 'plant.veg': 'Potager', 'plant.tomato': 'Tomates et poivrons', 'plant.shrub': 'Arbustes et fleurs', 'plant.tree': 'Oliviers et arbres fruitiers',
+    'short.general': 'les 27 premiers cm', 'short.lawn': 'la pelouse', 'short.veg': 'le potager', 'short.tomato': 'les tomates et les poivrons', 'short.shrub': 'les arbustes et les fleurs', 'short.tree': 'les arbres',
+    mapHint: 'Cliquez n’importe où sur la carte pour consulter cet endroit', mapLoading: 'Chargement de la carte…',
+    mapFail: 'La carte nécessite un accès à unpkg.com et openstreetmap.org, qui n’ont pas pu être chargés. La recherche fonctionne toujours.',
+    timeControl: 'Contrôle du temps', play: 'Lancer l’accéléré', pause: 'Pause', playTitle: 'Parcourir le temps',
+    rangeAria: 'Temps : faites glisser pour voir le passé ou les prévisions', now: 'Maintenant', ago5: 'il y a 5 jours', ahead7: '+7 jours', loading: 'Chargement…',
+    footer: 'Données : {link}, données de modèles (pas un capteur physique), grille d’environ 10 km. Les réglages de plantes et de sols sont des valeurs approximatives et typiques.',
+    'st.thirsty': 'Complètement sec', 'st.drying': 'Se dessèche', 'st.happy': 'Bien humide', 'st.saturated': 'Saturé',
+    'adv.saturated': 'Le sol est à la capacité au champ ou au-delà. N’arrosez pas : l’eau en trop ruissellerait ou s’écoulerait sous les racines.',
+    'adv.happyDry': 'Beaucoup d’eau disponible pour {plant}. Elle devrait passer sous votre seuil d’arrosage vers {when}.',
+    'adv.happyOk': 'Beaucoup d’eau disponible pour {plant}. Aucun arrosage n’est nécessaire sur la période de prévision.',
+    'adv.rain': 'Le sol est sec, mais environ {mm} mm de pluie sont prévus dans les 48 prochaines heures. Pensez à attendre.',
+    'adv.thirsty': 'Risque de stress hydrique pour {plant}. Arrosez en profondeur, et rapidement.',
+    'adv.drying': 'Le sol se dessèche. Prévoyez d’arroser d’ici un ou deux jours, surtout si les racines sont superficielles.',
+    'adv.et': ' La demande évaporative ce jour-là est d’environ {mm} mm.',
+    availableWater: 'd’eau disponible',
+    'tile.air': 'Température de l’air', 'tile.soilTemp': 'Temp. du sol (6 cm)', 'tile.rh': 'Humidité de l’air', 'tile.wind': 'Vent · rafales {g} km/h',
+    'tile.rain': 'Pluie cette heure · {mm} mm sur 48 h', 'tile.rz': 'Humidité de la zone racinaire',
+    'rel.future': 'Prévision · dans {s}', 'rel.past': 'Passé · il y a {s}', 'unit.d': 'j', 'unit.h': 'h',
+    soilProfile: 'Profil du sol', roots: 'racines jusqu’à {n} cm', soilImgAria: 'Humidité du sol par profondeur, {when}',
+    soilNote: 'Les couches ne sont pas à l’échelle. Les chiffres sont des teneurs volumiques en eau. La ligne en pointillés montre la profondeur atteinte par les racines de votre plante.',
+    chartTitle: 'Humidité du sol · 5 derniers jours et prévisions à 7 jours',
+    'lg.rz': 'Zone racinaire (0–{n} cm)', 'lg.surface': 'Surface (0–1 cm)', 'lg.deep': 'Profond (27–81 cm)', rzShort: 'Zone racinaire',
+    'c.past': '5 derniers jours', 'c.forecast': 'prévisions', 'c.fc': 'capacité au champ', 'c.thr': 'arroser sous ce niveau', 'c.wp': 'point de flétrissement', 'c.now': 'maint.',
+    chartAria: 'Humidité du sol au fil du temps. Utilisez les flèches gauche et droite pour vous déplacer dans le temps.', 'tip.rain': 'Pluie {mm} mm',
+    viewTable: 'Voir sous forme de tableau', 'tbl.day': 'Jour', 'tbl.rz': 'Zone racinaire', 'tbl.surface': 'Surface', 'tbl.deep': 'Profond', 'tbl.rain': 'Pluie mm', 'tbl.maxmin': 'Max / min',
+    'tbl.caption': 'Humidité moyenne quotidienne du sol et météo',
+    daysTitle: 'Prévisions quotidiennes · choisissez un jour', today: 'aujourd’hui', et: 'ET', hourByHour: 'heure par heure',
+    'm.rain': 'Pluie', 'm.temp': 'Température de l’air', 'm.wind': 'Vent',
+    miniHint: 'Survolez ou touchez un graphique pour lire les valeurs ; cliquez pour déplacer toute la page à cette heure.', miniAria: '{title} par heure',
+    removeAria: 'Retirer {name}', compare: 'Comparer',
+    cmpTitle: 'Comparer les lieux enregistrés · {plant} · {soil} · maintenant', cmpAvail: 'd’eau disponible', cmpRain: 'Pluie sur 48 h : {mm} mm',
+    cmpNote: 'La courbe montre l’humidité de la zone racinaire de il y a 5 jours à dans 7 jours ; la ligne horizontale en pointillés est le niveau « arroser sous ce niveau ». Cliquez sur une carte pour ouvrir ce lieu.',
+    cmpFail: 'Chargement impossible : {msg}',
+    'err.html': 'Le serveur n’a pas renvoyé de données (HTTP {code}). Lancez-le avec « node server.js » et ouvrez http://localhost:3000 dans le navigateur, pas directement le fichier HTML.',
+    'err.nodata': 'Pas de données d’humidité du sol pour cet endroit (eau ou glace ?). Essayez un point sur la terre ferme.',
+    'err.load': 'Impossible de charger les données : {msg}',
+    'geo.none': 'Votre navigateur ne gère pas la localisation. Utilisez la recherche.', 'geo.denied': 'Autorisation de localisation refusée. Utilisez la recherche ou la carte.',
+    yourLocation: 'Votre position', noMatches: 'Aucun résultat', pin: 'Point {lat}, {lon}',
+  },
+  de: {
+    title: 'Bodenfeuchte', search: 'Ort suchen…', searchAria: 'Ort suchen', locate: 'Meinen Standort verwenden',
+    mapBtn: 'Karte', mapTitle: 'Ort auf der Karte wählen', save: 'Speichern', saved: 'Gespeichert', saveTitle: 'Diesen Ort zum späteren Vergleich speichern',
+    plantAria: 'Pflanzenart', soilAria: 'Bodenart', langAria: 'Sprache',
+    'soil.sand': 'Sandboden', 'soil.loam': 'Lehmboden', 'soil.clay': 'Tonboden',
+    'plant.general': 'Allgemein (oberste 27 cm)', 'plant.lawn': 'Rasen', 'plant.veg': 'Gemüsegarten', 'plant.tomato': 'Tomaten & Paprika', 'plant.shrub': 'Sträucher & Blumen', 'plant.tree': 'Oliven- & Obstbäume',
+    'short.general': 'die obersten 27 cm', 'short.lawn': 'den Rasen', 'short.veg': 'das Gemüse', 'short.tomato': 'Tomaten und Paprika', 'short.shrub': 'Sträucher und Blumen', 'short.tree': 'die Bäume',
+    mapHint: 'Klicke irgendwo auf die Karte, um diese Stelle zu prüfen', mapLoading: 'Karte wird geladen…',
+    mapFail: 'Die Karte braucht Internetzugang zu unpkg.com und openstreetmap.org, die nicht geladen werden konnten. Die Suche funktioniert weiterhin.',
+    timeControl: 'Zeitsteuerung', play: 'Zeitraffer abspielen', pause: 'Pause', playTitle: 'Durch die Zeit laufen',
+    rangeAria: 'Zeit: ziehen, um Vergangenheit oder Vorhersage anzusehen', now: 'Jetzt', ago5: 'vor 5 Tagen', ahead7: '+7 Tage', loading: 'Wird geladen…',
+    footer: 'Daten: {link}, Modelldaten (kein physischer Sensor), Raster von ca. 10 km. Die Pflanzen- und Bodenvorgaben sind grobe, typische Werte.',
+    'st.thirsty': 'Knochentrocken', 'st.drying': 'Wird trocken', 'st.happy': 'Schön feucht', 'st.saturated': 'Gesättigt',
+    'adv.saturated': 'Der Boden liegt an oder über der Feldkapazität. Nicht gießen: Zusätzliches Wasser würde abfließen oder unter die Wurzeln versickern.',
+    'adv.happyDry': 'Reichlich pflanzenverfügbares Wasser für {plant}. Voraussichtlich fällt es gegen {when} unter deine Gießschwelle.',
+    'adv.happyOk': 'Reichlich pflanzenverfügbares Wasser für {plant}. Im Vorhersagezeitraum ist kein Gießen nötig.',
+    'adv.rain': 'Der Boden ist trocken, aber in den nächsten 48 Stunden werden etwa {mm} mm Regen erwartet. Warte lieber ab.',
+    'adv.thirsty': 'Gefahr von Trockenstress für {plant}. Gründlich und bald gießen.',
+    'adv.drying': 'Der Boden trocknet aus. Plane, in ein bis zwei Tagen zu gießen, besonders bei flachen Wurzeln.',
+    'adv.et': ' Der Verdunstungsbedarf an diesem Tag beträgt etwa {mm} mm.',
+    availableWater: 'des verfügbaren Wassers',
+    'tile.air': 'Lufttemperatur', 'tile.soilTemp': 'Bodentemp. (6 cm)', 'tile.rh': 'Luftfeuchte', 'tile.wind': 'Wind · Böen {g} km/h',
+    'tile.rain': 'Regen diese Stunde · {mm} mm in 48 h', 'tile.rz': 'Feuchte der Wurzelzone',
+    'rel.future': 'Vorhersage · in {s}', 'rel.past': 'Vergangenheit · vor {s}', 'unit.d': 'T', 'unit.h': 'Std',
+    soilProfile: 'Bodenprofil', roots: 'Wurzeln bis {n} cm', soilImgAria: 'Bodenfeuchte nach Tiefe, {when}',
+    soilNote: 'Die Schichten sind nicht maßstabsgetreu. Die Zahlen sind volumetrische Wassergehalte. Die gestrichelte Linie zeigt, wie tief die Wurzeln deiner Pflanze reichen.',
+    chartTitle: 'Bodenfeuchte · letzte 5 Tage und 7-Tage-Vorhersage',
+    'lg.rz': 'Wurzelzone (0–{n} cm)', 'lg.surface': 'Oberfläche (0–1 cm)', 'lg.deep': 'Tief (27–81 cm)', rzShort: 'Wurzelzone',
+    'c.past': 'letzte 5 Tage', 'c.forecast': 'Vorhersage', 'c.fc': 'Feldkapazität', 'c.thr': 'gießen unter diesem Wert', 'c.wp': 'Welkepunkt', 'c.now': 'jetzt',
+    chartAria: 'Bodenfeuchte im Zeitverlauf. Mit den Pfeiltasten links und rechts durch die Zeit gehen.', 'tip.rain': 'Regen {mm} mm',
+    viewTable: 'Als Tabelle anzeigen', 'tbl.day': 'Tag', 'tbl.rz': 'Wurzelzone', 'tbl.surface': 'Oberfläche', 'tbl.deep': 'Tief', 'tbl.rain': 'Regen mm', 'tbl.maxmin': 'Max / Min',
+    'tbl.caption': 'Mittlere tägliche Bodenfeuchte und Wetter',
+    daysTitle: 'Tagesausblick · Tag wählen', today: 'heute', et: 'ET', hourByHour: 'Stunde für Stunde',
+    'm.rain': 'Regen', 'm.temp': 'Lufttemperatur', 'm.wind': 'Wind',
+    miniHint: 'Mit der Maus darüberfahren oder ein Diagramm antippen, um Werte zu lesen; klicken, um die ganze Seite auf diese Stunde zu setzen.', miniAria: '{title} nach Stunde',
+    removeAria: '{name} entfernen', compare: 'Vergleichen',
+    cmpTitle: 'Gespeicherte Orte vergleichen · {plant} · {soil} · jetzt', cmpAvail: 'verfügbares Wasser', cmpRain: 'Regen in den nächsten 48 h: {mm} mm',
+    cmpNote: 'Die Linie zeigt die Feuchte der Wurzelzone von vor 5 Tagen bis in 7 Tage; die gestrichelte waagerechte Linie ist die Marke „gießen unter diesem Wert“. Klicke auf eine Karte, um diesen Ort zu öffnen.',
+    cmpFail: 'Konnte nicht geladen werden: {msg}',
+    'err.html': 'Der Server hat keine Daten geliefert (HTTP {code}). Starte ihn mit „node server.js“ und öffne http://localhost:3000 im Browser, nicht die HTML-Datei direkt.',
+    'err.nodata': 'Für diese Stelle gibt es keine Bodenfeuchtedaten (vielleicht Wasser oder Eis). Versuche einen Punkt an Land.',
+    'err.load': 'Daten konnten nicht geladen werden: {msg}',
+    'geo.none': 'Dein Browser unterstützt keine Standortbestimmung. Nutze die Suche.', 'geo.denied': 'Standortzugriff verweigert. Nutze die Suche oder die Karte.',
+    yourLocation: 'Dein Standort', noMatches: 'Keine Treffer', pin: 'Punkt {lat}, {lon}',
+  },
+  pt: {
+    title: 'Umidade do solo', search: 'Buscar um lugar…', searchAria: 'Buscar um lugar', locate: 'Usar minha localização',
+    mapBtn: 'Mapa', mapTitle: 'Escolher um lugar no mapa', save: 'Salvar', saved: 'Salvo', saveTitle: 'Salve este lugar para comparar depois',
+    plantAria: 'Tipo de planta', soilAria: 'Tipo de solo', langAria: 'Idioma',
+    'soil.sand': 'Solo arenoso', 'soil.loam': 'Solo franco', 'soil.clay': 'Solo argiloso',
+    'plant.general': 'Geral (primeiros 27 cm)', 'plant.lawn': 'Gramado', 'plant.veg': 'Horta', 'plant.tomato': 'Tomates e pimentões', 'plant.shrub': 'Arbustos e flores', 'plant.tree': 'Oliveiras e árvores frutíferas',
+    'short.general': 'os primeiros 27 cm', 'short.lawn': 'o gramado', 'short.veg': 'a horta', 'short.tomato': 'os tomates e pimentões', 'short.shrub': 'os arbustos e as flores', 'short.tree': 'as árvores',
+    mapHint: 'Clique em qualquer ponto do mapa para consultar o local', mapLoading: 'Carregando mapa…',
+    mapFail: 'O mapa precisa de acesso à internet a unpkg.com e openstreetmap.org, que não carregaram. A busca continua funcionando.',
+    timeControl: 'Controle de tempo', play: 'Reproduzir linha do tempo', pause: 'Pausar', playTitle: 'Percorrer o tempo',
+    rangeAria: 'Tempo: arraste para ver o passado ou a previsão', now: 'Agora', ago5: 'há 5 dias', ahead7: '+7 dias', loading: 'Carregando…',
+    footer: 'Dados: {link}, dados de modelos (não é um sensor físico), grade de ~10 km. Os ajustes de plantas e solos são valores aproximados e típicos.',
+    'st.thirsty': 'Totalmente seco', 'st.drying': 'Ficando seco', 'st.happy': 'Bem úmido', 'st.saturated': 'Saturado',
+    'adv.saturated': 'O solo está na capacidade de campo ou acima. Não regue: a água extra escorreria ou drenaria abaixo das raízes.',
+    'adv.happyDry': 'Há bastante água disponível para {plant}. A previsão é que caia abaixo do seu limite de rega por volta de {when}.',
+    'adv.happyOk': 'Há bastante água disponível para {plant}. Não é preciso regar durante o período de previsão.',
+    'adv.rain': 'O solo está seco, mas há previsão de cerca de {mm} mm de chuva nas próximas 48 h. Considere esperar.',
+    'adv.thirsty': 'Risco de estresse hídrico para {plant}. Regue bem fundo e logo.',
+    'adv.drying': 'O solo está secando. Planeje regar em um ou dois dias, principalmente se as raízes forem rasas.',
+    'adv.et': ' A demanda evaporativa desse dia é de cerca de {mm} mm.',
+    availableWater: 'da água disponível',
+    'tile.air': 'Temperatura do ar', 'tile.soilTemp': 'Temp. do solo (6 cm)', 'tile.rh': 'Umidade do ar', 'tile.wind': 'Vento · rajadas {g} km/h',
+    'tile.rain': 'Chuva nesta hora · {mm} mm em 48 h', 'tile.rz': 'Umidade da zona radicular',
+    'rel.future': 'Previsão · daqui a {s}', 'rel.past': 'Passado · há {s}', 'unit.d': 'd', 'unit.h': 'h',
+    soilProfile: 'Perfil do solo', roots: 'raízes até {n} cm', soilImgAria: 'Umidade do solo por profundidade em {when}',
+    soilNote: 'As camadas não estão em escala. Os números são teor volumétrico de água. A linha tracejada mostra até onde chegam as raízes da sua planta.',
+    chartTitle: 'Umidade do solo · últimos 5 dias e previsão de 7 dias',
+    'lg.rz': 'Zona radicular (0–{n} cm)', 'lg.surface': 'Superfície (0–1 cm)', 'lg.deep': 'Profundo (27–81 cm)', rzShort: 'Zona radicular',
+    'c.past': 'últimos 5 dias', 'c.forecast': 'previsão', 'c.fc': 'capacidade de campo', 'c.thr': 'regar abaixo disto', 'c.wp': 'ponto de murcha', 'c.now': 'agora',
+    chartAria: 'Umidade do solo ao longo do tempo. Use as setas esquerda e direita para se mover no tempo.', 'tip.rain': 'Chuva {mm} mm',
+    viewTable: 'Ver como tabela', 'tbl.day': 'Dia', 'tbl.rz': 'Zona radicular', 'tbl.surface': 'Superfície', 'tbl.deep': 'Profundo', 'tbl.rain': 'Chuva mm', 'tbl.maxmin': 'Máx. / mín.',
+    'tbl.caption': 'Umidade média diária do solo e tempo',
+    daysTitle: 'Previsão diária · escolha um dia', today: 'hoje', et: 'ET', hourByHour: 'hora a hora',
+    'm.rain': 'Chuva', 'm.temp': 'Temperatura do ar', 'm.wind': 'Vento',
+    miniHint: 'Passe o cursor ou toque em um gráfico para ler os valores; clique para levar a página toda a essa hora.', miniAria: '{title} por hora',
+    removeAria: 'Remover {name}', compare: 'Comparar',
+    cmpTitle: 'Comparar lugares salvos · {plant} · {soil} · agora', cmpAvail: 'da água disponível', cmpRain: 'Chuva nas próximas 48 h: {mm} mm',
+    cmpNote: 'A linha mostra a umidade da zona radicular de 5 dias atrás até 7 dias à frente; a linha tracejada horizontal é o nível “regar abaixo disto”. Clique em um cartão para abrir esse lugar.',
+    cmpFail: 'Não foi possível carregar: {msg}',
+    'err.html': 'O servidor não respondeu com dados (HTTP {code}). Inicie-o com “node server.js” e abra http://localhost:3000 no navegador, não o arquivo HTML diretamente.',
+    'err.nodata': 'Não há dados de umidade do solo para este ponto (pode ser água ou gelo). Tente um ponto em terra firme.',
+    'err.load': 'Não foi possível carregar os dados: {msg}',
+    'geo.none': 'Seu navegador não oferece localização. Use a busca.', 'geo.denied': 'Permissão de localização negada. Use a busca ou o mapa.',
+    yourLocation: 'Sua localização', noMatches: 'Nenhum resultado', pin: 'Ponto {lat}, {lon}',
+  },
+  bg: {
+    title: 'Влажност на почвата', search: 'Търсене на локация...', searchAria: 'Търсене на локация', locate: 'Избери моето местоположение',
+    mapBtn: 'Карта', mapTitle: 'Изберете място на картата', save: 'Запази', saved: 'Запазено', saveTitle: 'Запазете това място, за да го сравните по-късно',
+    plantAria: 'Вид растение', soilAria: 'Тип почва', langAria: 'Език',
+    'soil.sand': 'Песъчлива почва', 'soil.loam': 'Глинесто-хумусна почва', 'soil.clay': 'Глинеста почва',
+    'plant.general': 'Основни (горни 27 cm)', 'plant.lawn': 'Поляни / треви', 'plant.veg': 'Зеленчукова градина', 'plant.tomato': 'Домати и чушки', 'plant.shrub': 'Храсти и цветя', 'plant.tree': 'Маслинови и овощни дървета',
+    'short.general': 'най-горните 27 cm', 'short.lawn': 'ливади', 'short.veg': 'зеленчуци', 'short.tomato': 'домати и чушки', 'short.shrub': 'храсти и цветя', 'short.tree': 'маслинови и овощни дървета',
+    mapHint: 'Кликнете където и да е върху картата, за да проверите това място', mapLoading: 'Зареждане на карта…',
+    mapFail: 'Картата се нуждае от достъп до интернет до unpkg.com и openstreetmap.org, но те не се заредиха. Търсенето все още работи.',
+    timeControl: 'Контрол на времето', play: 'Възпроизвеждане на времеви отрязък', pause: 'Пауза', playTitle: 'Възпроизвеждане във времето',
+    rangeAria: 'Време: плъзнете, за да видите миналото или прогнозата', now: 'Сега', ago5: 'Преди 5 дни', ahead7: '+7 дни', loading: 'Зареждане…',
+    footer: 'Данни: {link} моделни данни (а не от физически сензор), мрежа с разделителна способност ~10 км. Предварително зададените параметри за растенията и почвата представляват приблизителни, типични стойности.',
+    'st.thirsty': 'Напълно суха', 'st.drying': 'Изсъхва', 'st.happy': 'Добра влажност', 'st.saturated': 'Подгизнала',
+    'adv.saturated': 'Почвата е на или над капацитета за влажност на полето. Пропуснете поливането: излишната вода ще се оттече или ще се отцеди под корените.',
+    'adv.happyDry': 'Достатъчно вода, достъпна за растенията от тип {plant}. Прогнозата е да падне под прага за поливане около {when}.',
+    'adv.happyOk': 'Достатъчно вода, достъпна за растенията от тип {plant}. Не е необходимо поливане в рамките на прогнозния период.',
+    'adv.rain': 'Почвата е суха, но се прогнозират около {mm} мм дъжд през следващите 48 часа. Обмислете да изчакате за поливане.',
+    'adv.thirsty': 'Риск от воден стрес за растения от тип {plant}. Поливайте обилно и скоро.',
+    'adv.drying': 'Почвата се изсушава. Планирайте да поливате в рамките на ден или два, особено ако корените са дълбоки.',
+    'adv.et': 'Водната изпаряемост през този ден е около {mm} mm.',
+    availableWater: 'от наличната вода',
+    'tile.air': 'Температура на въздуха', 'tile.soilTemp': 'Температура на почвата (6 cm)', 'tile.rh': 'Влажност на въздуха', 'tile.wind': 'Вятър · пориви {g} км/ч',
+    'tile.rain': 'Дъжд този час · {mm} mm следващи 48 h', 'tile.rz': 'Влажност в зоната на корените',
+    'rel.future': 'Прогноза · в {s}', 'rel.past': 'Минало · {s} назад', 'unit.d': 'д', 'unit.h': 'ч',
+    soilProfile: 'Профил на почвата', roots: 'корени до {n} cm', soilImgAria: 'Влажност на почвата по дълбочина в {when}',
+    soilNote: 'Слоевете не са изобразени в мащаб. Числата са обемна влажност. Пунктирната линия показва колко дълбоко достигат корените на растението.',
+    chartTitle: 'Влажност на почвата · последни 5 дни и 7-дневна прогноза',
+    'lg.rz': 'Зона на корените (0–{n} cm)', 'lg.surface': 'Повърхност (0–1 cm)', 'lg.deep': 'Дълбочина (27–81 cm)', rzShort: 'Зона на корените',
+    'c.past': 'минали 5 дни', 'c.forecast': 'прогноза', 'c.fc': 'полев капацитет', 'c.thr': 'вода под това', 'c.wp': 'точка на уволнение', 'c.now': 'сега',
+    chartAria: 'Влажност на почвата през времето. Използвайте левите и десните стрелки, за да се придвижите през времето.', 'tip.rain': 'Дъжд {mm} mm',
+    viewTable: 'Преглед като таблица', 'tbl.day': 'Ден', 'tbl.rz': 'Зона на корените', 'tbl.surface': 'Повърхност', 'tbl.deep': 'Дълбочина', 'tbl.rain': 'Дъжд mm', 'tbl.maxmin': 'Макс / мин',
+    'tbl.caption': 'Средна дневна влажност на почвата и времето',
+    daysTitle: 'Дневен преглед · изберете ден', today: 'днес', et: 'ET', hourByHour: 'час по час',
+    'm.rain': 'Дъжд', 'm.temp': 'Температура на въздуха', 'm.wind': 'Вятър',
+    miniHint: 'Задръжте курсора на мишката или докоснете диаграма, за да прочетете стойностите; щракнете, за да преминете през цялата страница към съответния час.', miniAria: '{title} по час',
+    removeAria: 'Премахване {name}', compare: 'Сравни',
+    cmpTitle: 'Сравни запазените места · {plant} · {soil} · сега', cmpAvail: 'налична влажност', cmpRain: 'Дъжд през следващите 48 ч: {mm} mm',
+    cmpNote: 'Линията показва влажността в кореновата зона отпреди 5 дни до следващите 7 дни; пунктираната хоризонтална линия е нивото „поливане под това ниво“. Щракнете върху карта, за да отворите това място.',
+    cmpFail: 'Не можа да се зареди: {msg}',
+    'err.html': 'Сървърът не отговори с данни (HTTP {code}). Стартирайте го с "node server.js" и отворете http://localhost:3000 в браузъра, а не директно HTML файла.',
+    'err.nodata': 'Няма данни за влажността на почвата за това място (възможно е да е вода или лед). Опитайте точка на сушата.',
+    'err.load': 'Не можаха да се заредят данните: {msg}',
+    'geo.none': 'Вашият браузър не поддържа местоположение. Използвайте полето за търсене вместо това.', 'geo.denied': 'Разрешението за местоположение е отказано. Използвайте полето за търсене или картата вместо това.',
+    yourLocation: 'Вашето местоположение', noMatches: 'Няма съвпадения', pin: 'Отбележи {lat}, {lon}',
+  },
+};
+
+function detectLang() {
+  const saved = store.get('lang', '');
+  if (LANGS[saved]) return saved;
+  const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
+  return LANGS[nav] ? nav : 'en';
+}
+const state = {
+  lang: detectLang(),
+  place: null,
+  soil: ['sand', 'loam', 'clay'].includes(store.get('soil', '')) ? store.get('soil', '') : 'loam',
+  plant: ['general', 'lawn', 'veg', 'tomato', 'shrub', 'tree'].includes(store.get('plant', '')) ? store.get('plant', '') : 'general',
+  saved: (store.get('saved', []) || []).filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lon)),
+  data: null, rz: [], t: 0, selDay: null, dayStart: 0, dayN: 24,
+  playing: false, hidden: new Set(), compare: false,
+};
+function t(key, p) {
+  let s = (I18N[state.lang] && I18N[state.lang][key]);
+  if (s == null) s = I18N.en[key];
+  if (s == null) return key;
+  return p ? s.replace(/\{(\w+)\}/g, (_, n) => (p[n] != null ? p[n] : '')) : s;
+}
+const fx = (v, d = 1) => Number(v).toLocaleString(LANGS[state.lang].locale, { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// ---------- presets ----------
+// wilt = wilting point, fc = field capacity (m³/m³)
+const SOILS = {
+  sand: { wilt: 0.06, fc: 0.15 },
+  loam: { wilt: 0.12, fc: 0.30 },
+  clay: { wilt: 0.22, fc: 0.42 },
+};
+// root = rooting depth (cm); irrigate = water when available water falls below this fraction
+const PLANTS = {
+  general: { root: 27, irrigate: 0.5 },
+  lawn:    { root: 15, irrigate: 0.5 },
+  veg:     { root: 30, irrigate: 0.5 },
+  tomato:  { root: 45, irrigate: 0.6 },
+  shrub:   { root: 60, irrigate: 0.35 },
+  tree:    { root: 81, irrigate: 0.25 },
+};
+const LB = [[0, 1], [1, 3], [3, 9], [9, 27], [27, 81]];   // soil layer bounds in cm
+const plantName = k => t('plant.' + k), plantShort = k => t('short.' + k), soilName = k => t('soil.' + k);
+
+// ---------- formatting ----------
+const pct = v => (v * 100).toFixed(0) + '%';
+const dirName = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(d / 45) % 8];
+const dayDate = iso => new Date(iso.slice(0, 10) + 'T12:00');
+const fmtDay = (iso, o) => dayDate(iso).toLocaleDateString(LANGS[state.lang].locale, o);
+const hh = iso => iso.slice(11, 16);
+const fmtTime = iso => `${fmtDay(iso, { weekday: 'short', day: 'numeric', month: 'short' })}, ${hh(iso)}`;
+function relLabel(i) {
+  const d = i - state.data.nowIdx;
+  if (d === 0) return t('now');
+  const a = Math.abs(d), days = Math.floor(a / 24), hrs = a % 24;
+  const s = [days ? `${days} ${t('unit.d')}` : '', hrs ? `${hrs} ${t('unit.h')}` : ''].filter(Boolean).join(' ');
+  return t(d > 0 ? 'rel.future' : 'rel.past', { s });
+}
+const samePlace = (a, b) => a && b && Math.abs(a.lat - b.lat) < 0.0006 && Math.abs(a.lon - b.lon) < 0.0006;
+const isDark = () => !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+// ---------- analysis (runs in the browser so everything updates instantly) ----------
+function rootWeights(root) {
+  const w = LB.map(([a, b]) => Math.max(0, Math.min(b, root) - a));
+  const s = w.reduce((x, y) => x + y, 0);
+  return w.map(x => x / s);
+}
+function rzSeries(d, plant) {
+  const w = rootWeights(plant.root), n = d.hourly.time.length, out = new Array(n);
+  for (let i = 0; i < n; i++) out[i] = w.reduce((s, wi, l) => s + wi * d.hourly.m[l][i], 0);
+  return out;
+}
+function statusOf(avail, plant) {
+  if (avail < plant.irrigate * 0.5) return { key: 'thirsty', emoji: '🥵' };
+  if (avail < plant.irrigate) return { key: 'drying', emoji: '🌤️' };
+  if (avail <= 1) return { key: 'happy', emoji: '🌱' };
+  return { key: 'saturated', emoji: '💧' };
+}
+function analyze(d, rz, i, soil, plantKey) {
+  const plant = PLANTS[plantKey];
+  const h = d.hourly, n = h.time.length;
+  const availAt = k => (rz[k] - soil.wilt) / (soil.fc - soil.wilt);
+  const avail = availAt(i);
+  const st = statusOf(avail, plant);
+  let rain48 = 0;
+  for (let k = i; k < Math.min(i + 48, n); k++) rain48 += h.rain[k] || 0;
+  const dd = d.daily.find(x => x.date === h.time[i].slice(0, 10));
+  const et = dd ? dd.et0 : null;
+  let dryAt = null;
+  if (avail >= plant.irrigate) for (let k = i + 1; k < n; k++) if (availAt(k) < plant.irrigate) { dryAt = k; break; }
+
+  const pl = plantShort(plantKey);
+  let advice;
+  if (st.key === 'saturated') advice = t('adv.saturated');
+  else if (st.key === 'happy') advice = dryAt != null ? t('adv.happyDry', { plant: pl, when: fmtTime(h.time[dryAt]) }) : t('adv.happyOk', { plant: pl });
+  else if (rain48 >= 5) advice = t('adv.rain', { mm: rain48.toFixed(0) });
+  else if (st.key === 'thirsty') advice = t('adv.thirsty', { plant: pl });
+  else advice = t('adv.drying');
+  if (et != null && (st.key === 'thirsty' || st.key === 'drying')) advice += t('adv.et', { mm: fx(et, 1) });
+  return { avail, availPct: Math.max(0, Math.round(avail * 100)), rain48, headline: t('st.' + st.key), ...st, advice };
+}
+const A = i => analyze(state.data, state.rz, i, SOILS[state.soil], state.plant);
+
+// ---------- data ----------
+const wcache = new Map();
+async function fetchWeather(p) {
+  const key = `${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;
+  const hit = wcache.get(key);
+  if (hit && Date.now() - hit.t < 10 * 60e3) return hit.d;
+  const r = await fetch(`/api/weather?lat=${p.lat}&lon=${p.lon}`);
+  const text = await r.text();
+  let d;
+  try { d = JSON.parse(text); }
+  catch { throw new Error(t('err.html', { code: r.status })); }
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  if (d.hourly.m[0][d.nowIdx] == null) throw new Error(t('err.nodata'));
+  wcache.set(key, { t: Date.now(), d });
+  return d;
+}
+
+// ---------- soil profile ----------
+function soilFill(v, soil) {
+  const tt = clamp((v - soil.wilt * 0.5) / (soil.fc * 1.25 - soil.wilt * 0.5), 0, 1);
+  const dk = isDark();
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const a = hex(dk ? '#b9976a' : '#d8b98a'), b = hex(dk ? '#2a1a0f' : '#4a2f1d');
+  return { css: `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * tt))})`, t: tt };
+}
+function soilPanelHTML(i) {
+  const d = state.data, h = d.hourly, soil = SOILS[state.soil], plant = PLANTS[state.plant];
+  const W = 300, top = 44, hs = [28, 34, 48, 66, 84];
+  let y = top, out = '';
+  d.layers.forEach((l, k) => {
+    const v = h.m[k][i], f = soilFill(v, soil), fg = f.t > 0.45 ? '#f3e9d9' : '#3a2a18';
+    out += `<rect x="20" y="${y}" width="${W - 40}" height="${hs[k]}" fill="${f.css}"/>`;
+    out += `<text x="30" y="${y + hs[k] / 2 + 4}" style="fill:${fg}">${l.label}</text>`;
+    out += `<text x="${W - 30}" y="${y + hs[k] / 2 + 4}" text-anchor="end" style="fill:${fg};font-weight:700;font-size:13px">${pct(v)}</text>`;
+    y += hs[k];
+  });
+  // where this plant's roots reach
+  let ry = top, rem = plant.root;
+  for (let k = 0; k < LB.length && rem > 0; k++) { const th = LB[k][1] - LB[k][0], use = Math.min(rem, th); ry += hs[k] * use / th; rem -= use; }
+  out += `<line x1="20" x2="${W - 20}" y1="${ry}" y2="${ry}" stroke="var(--s1)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  out += `<rect x="${W - 134}" y="${ry - 9}" width="110" height="18" rx="9" fill="var(--card)" stroke="var(--s1)"/>`;
+  out += `<text x="${W - 79}" y="${ry + 4}" text-anchor="middle" style="fill:var(--ink)">${esc(t('roots', { n: plant.root }))}</text>`;
+
+  const day = !!h.isDay[i];
+  let sky = `<rect x="20" y="0" width="${W - 40}" height="${top}" rx="10" fill="${day ? '#9fd0f0' : '#25304a'}"/>`;
+  sky += day ? `<circle cx="${W - 55}" cy="20" r="9" fill="#ffd75e"/>` : `<circle cx="${W - 55}" cy="20" r="8" fill="#e8e4cf"/>`;
+  let drops = '';
+  if ((h.rain[i] || 0) >= 0.1) for (let k = 0; k < 12; k++)
+    drops += `<line class="drop" x1="${40 + k * 21}" x2="${37 + k * 21}" y1="6" y2="16" stroke="#3b82c4" stroke-width="2" stroke-linecap="round" style="animation-delay:${(k % 5) * 0.18}s"/>`;
+  const grass = `<rect x="20" y="${top - 5}" width="${W - 40}" height="6" fill="#4a9d5f"/>`;
+  const H = top + hs.reduce((a, b) => a + b) + 10;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('soilImgAria', { when: fmtTime(h.time[i]) }))}">${sky}${drops}${grass}${out}</svg>`;
+}
+
+function heroHTML(i) {
+  const d = state.data, h = d.hourly, a = A(i);
+  return `
+    <div class="hero">
+      <div class="emoji">${a.emoji}</div>
+      <div>
+        <span class="tag">${esc(relLabel(i))} · ${esc(fmtTime(h.time[i]))}</span>
+        <div class="big">${esc(a.headline)} <span style="font-weight:400;color:var(--ink2);font-size:1rem">· ${a.availPct}% ${esc(t('availableWater'))}</span></div>
+        <div class="loc">${esc(state.place.name)} · ${esc(plantName(state.plant))} · ${esc(soilName(state.soil))}</div>
+      </div>
+    </div>
+    <p class="advice">${esc(a.advice)}</p>
+    <div class="tiles">
+      <div class="tile"><b>${fx(h.temp[i], 1)}°C</b><span>${esc(t('tile.air'))}</span></div>
+      <div class="tile"><b>${fx(h.soilTemp[i], 1)}°C</b><span>${esc(t('tile.soilTemp'))}</span></div>
+      <div class="tile"><b>${h.rh[i]}%</b><span>${esc(t('tile.rh'))}</span></div>
+      <div class="tile"><b>${h.wind[i].toFixed(0)} km/h ${dirName(h.dir[i])}</b><span>${esc(t('tile.wind', { g: h.gust[i].toFixed(0) }))}</span></div>
+      <div class="tile"><b>${fx(h.rain[i] || 0, 1)} mm</b><span>${esc(t('tile.rain', { mm: a.rain48.toFixed(0) }))}</span></div>
+      <div class="tile"><b>${pct(state.rz[i])}</b><span>${esc(t('tile.rz'))}</span></div>
+    </div>`;
+}
+
+// ---------- main moisture chart ----------
+const CH = { W: 720, H: 270, l: 42, r: 12, t: 14, b: 26 };
+// Draw the chart at its real pixel width so text and lines keep their size on wide screens.
+// (On phones it stays at least 620 wide and scrolls sideways.)
+let lastChartW = 0;
+function sizeChart() {
+  const wrap = $('#chartWrap');
+  const w = wrap ? Math.round(wrap.clientWidth) : 0;
+  lastChartW = w;
+  CH.W = Math.max(620, w || 720);
+  CH.H = CH.W > 1000 ? 310 : 270;
+}
+const SERIES = [
+  { id: 'rz', color: '--s1', w: 2.5 },
+  { id: 'surface', color: '--s2', w: 1.5 },
+  { id: 'deep', color: '--s3', w: 1.5 },
+];
+const serName = id => (id === 'rz' ? t('lg.rz', { n: PLANTS[state.plant].root }) : t('lg.' + id));
+function seriesVals(id) {
+  const h = state.data.hourly;
+  return id === 'rz' ? state.rz : id === 'surface' ? h.m[0] : h.m[4];
+}
+function geom() {
+  const n = state.data.hourly.time.length, soil = SOILS[state.soil];
+  let maxV = soil.fc * 1.25;
+  for (const s of SERIES) for (const v of seriesVals(s.id)) if (v > maxV) maxV = v;
+  maxV *= 1.05;
+  return {
+    n, maxV,
+    x: i => CH.l + (i / (n - 1)) * (CH.W - CH.l - CH.r),
+    y: v => CH.t + (1 - v / maxV) * (CH.H - CH.t - CH.b),
+  };
+}
+function chartSVG() {
+  const d = state.data, h = d.hourly, soil = SOILS[state.soil], plant = PLANTS[state.plant];
+  const { maxV, x, y } = geom();
+  const pw = CH.W - CH.l - CH.r;
+  const thr = soil.wilt + plant.irrigate * (soil.fc - soil.wilt);
+  let g = '';
+  // forecast region
+  g += `<rect x="${x(d.nowIdx)}" y="${CH.t}" width="${CH.l + pw - x(d.nowIdx)}" height="${CH.H - CH.t - CH.b}" fill="var(--ink)" opacity=".04"/>`;
+  g += `<text x="${CH.l + 6}" y="${CH.t + 11}">${esc(t('c.past'))}</text><text x="${CH.l + pw - 6}" y="${CH.t + 11}" text-anchor="end">${esc(t('c.forecast'))}</text>`;
+  // plant-available band
+  g += `<rect x="${CH.l}" y="${y(soil.fc)}" width="${pw}" height="${y(soil.wilt) - y(soil.fc)}" fill="var(--s1)" opacity=".07"/>`;
+  const ref = (v, label, dash, dy) => `<line x1="${CH.l}" x2="${CH.l + pw}" y1="${y(v)}" y2="${y(v)}" stroke="var(--ink2)" stroke-width="1" stroke-dasharray="${dash}" opacity=".55"/><text x="${CH.l + pw - 4}" y="${y(v) + dy}" text-anchor="end">${esc(label)}</text>`;
+  g += ref(soil.fc, t('c.fc'), '2 4', -4) + ref(thr, t('c.thr'), '6 4', -4) + ref(soil.wilt, t('c.wp'), '2 4', 12);
+  // grid + axes
+  const step = maxV > 0.6 ? 0.2 : 0.1;
+  for (let v = 0; v <= maxV; v += step) g += `<text x="${CH.l - 6}" y="${y(v) + 4}" text-anchor="end">${pct(v)}</text>`;
+  g += `<line x1="${CH.l}" x2="${CH.l + pw}" y1="${CH.H - CH.b}" y2="${CH.H - CH.b}" stroke="var(--axis)"/>`;
+  h.time.forEach((tm, i) => { if (tm.endsWith('T00:00')) g += `<line x1="${x(i)}" x2="${x(i)}" y1="${CH.H - CH.b}" y2="${CH.H - CH.b + 4}" stroke="var(--axis)"/><text x="${x(i) + 3}" y="${CH.H - 8}">${esc(fmtDay(tm, { weekday: 'short' }))}</text>`; });
+  // series (deep first so root zone sits on top)
+  for (const s of [...SERIES].reverse()) {
+    if (state.hidden.has(s.id)) continue;
+    const pts = seriesVals(s.id).map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    g += `<polyline fill="none" stroke="var(${s.color})" stroke-width="${s.w}" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/>`;
+  }
+  g += `<line x1="${x(d.nowIdx)}" x2="${x(d.nowIdx)}" y1="${CH.t}" y2="${CH.H - CH.b}" stroke="var(--ink2)" stroke-dasharray="3 3"/><text x="${x(d.nowIdx) - 4}" y="${CH.H - CH.b - 5}" text-anchor="end">${esc(t('c.now'))}</text>`;
+  g += `<line id="hovLine" y1="${CH.t}" y2="${CH.H - CH.b}" stroke="var(--ink2)" opacity=".6" visibility="hidden"/>`;
+  g += `<line id="curLine" y1="${CH.t}" y2="${CH.H - CH.b}" stroke="var(--ink)" stroke-width="1.5"/>`;
+  g += `<circle id="curDot" r="5" fill="var(--s1)" stroke="var(--card)" stroke-width="2"/>`;
+  return `<svg id="mChart" viewBox="0 0 ${CH.W} ${CH.H}" style="width:100%;min-width:${CH.W}px" role="img" tabindex="0" aria-label="${esc(t('chartAria'))}">${g}</svg><div class="tip" id="tip" hidden></div>`;
+}
+function renderChart() {
+  const wrap = $('#chartWrap'); if (!wrap) return;
+  sizeChart();
+  $('#chartLegend').innerHTML = SERIES.map(s => `<button data-series="${s.id}" aria-pressed="${!state.hidden.has(s.id)}"><span class="key" style="background:var(${s.color})"></span>${esc(serName(s.id))}</button>`).join('');
+  const keep = wrap.scrollLeft;
+  wrap.innerHTML = chartSVG();
+  bindChart();
+  setCursor();
+  // on narrow screens the chart scrolls sideways: open it centred on "now"
+  if (wrap.scrollWidth > wrap.clientWidth) {
+    const w = $('#mChart').getBoundingClientRect().width || CH.W;
+    wrap.scrollLeft = keep || Math.max(0, geom().x(state.data.nowIdx) / CH.W * w - wrap.clientWidth / 2);
+  }
+}
+function setCursor() {
+  const svg = $('#mChart'); if (!svg || !state.data) return;
+  const { x, y } = geom(), cx = x(state.t);
+  $('#curLine').setAttribute('x1', cx); $('#curLine').setAttribute('x2', cx);
+  const dot = $('#curDot');
+  if (state.hidden.has('rz')) dot.setAttribute('visibility', 'hidden');
+  else { dot.setAttribute('visibility', 'visible'); dot.setAttribute('cx', cx); dot.setAttribute('cy', y(state.rz[state.t])); }
+}
+function bindChart() {
+  const svg = $('#mChart'), tip = $('#tip'), hov = $('#hovLine'), n = state.data.hourly.time.length;
+  const idxOf = e => {
+    const r = svg.getBoundingClientRect();
+    const sx = (e.clientX - r.left) * CH.W / (r.width || CH.W);
+    return clamp(Math.round((sx - CH.l) / (CH.W - CH.l - CH.r) * (n - 1)), 0, n - 1);
+  };
+  const hide = () => { tip.hidden = true; hov.setAttribute('visibility', 'hidden'); };
+  svg.addEventListener('pointermove', e => {
+    const i = idxOf(e), { x } = geom(), h = state.data.hourly;
+    hov.setAttribute('x1', x(i)); hov.setAttribute('x2', x(i)); hov.setAttribute('visibility', 'visible');
+    tip.replaceChildren(el('div', 'th', `${fmtTime(h.time[i])} · ${relLabel(i)}`));
+    for (const s of SERIES) {
+      if (state.hidden.has(s.id)) continue;
+      const row = el('div', 'tr'), key = el('span', 'key');
+      key.style.background = `var(${s.color})`;
+      row.append(key, el('strong', null, pct(seriesVals(s.id)[i])), el('span', 'n', s.id === 'rz' ? t('rzShort') : t('lg.' + s.id)));
+      tip.append(row);
+    }
+    tip.append(el('div', 'th', `${t('tip.rain', { mm: fx(h.rain[i] || 0, 1) })} · ${fx(h.temp[i], 1)}°C`));
+    tip.hidden = false;
+    const r = svg.getBoundingClientRect(), px = x(i) / CH.W * (r.width || CH.W);
+    tip.style.left = (px > (r.width || CH.W) * 0.6 ? Math.max(0, px - tip.offsetWidth - 12) : px + 12) + 'px';
+  });
+  svg.addEventListener('pointerleave', hide);
+  svg.addEventListener('click', e => { setT(idxOf(e)); });
+  svg.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 24 : 1;
+    if (e.key === 'ArrowLeft') { setT(state.t - step); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { setT(state.t + step); e.preventDefault(); }
+    else if (e.key === 'Home') { setT(0); e.preventDefault(); }
+    else if (e.key === 'End') { setT(n - 1); e.preventDefault(); }
+  });
+}
+function tableHTML() {
+  const d = state.data, h = d.hourly;
+  const rows = d.daily.map(day => {
+    const idx = []; h.time.forEach((tm, i) => { if (tm.startsWith(day.date)) idx.push(i); });
+    const avg = arr => idx.reduce((s, i) => s + arr[i], 0) / (idx.length || 1);
+    return `<tr><td>${esc(fmtDay(day.date, { weekday: 'short', day: 'numeric', month: 'short' }))}</td><td>${pct(avg(state.rz))}</td><td>${pct(avg(h.m[0]))}</td><td>${pct(avg(h.m[4]))}</td><td>${fx(day.rain || 0, 1)}</td><td>${day.tMax.toFixed(0)}° / ${day.tMin.toFixed(0)}°</td></tr>`;
+  }).join('');
+  return `<table><caption class="sr">${esc(t('tbl.caption'))}</caption><thead><tr><th>${esc(t('tbl.day'))}</th><th>${esc(t('tbl.rz'))}</th><th>${esc(t('tbl.surface'))}</th><th>${esc(t('tbl.deep'))}</th><th>${esc(t('tbl.rain'))}</th><th>${esc(t('tbl.maxmin'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+const detailsHTML = () => `<summary>${esc(t('viewTable'))}</summary>${tableHTML()}`;
+
+// ---------- days strip + hourly detail ----------
+function todayDate() { return state.data.hourly.time[state.data.nowIdx].slice(0, 10); }
+function renderDays() {
+  const d = state.data, box = $('#days'); if (!box) return;
+  const maxRain = Math.max(5, ...d.daily.map(x => x.rain || 0));
+  box.innerHTML = d.daily.map(x => `
+    <button class="day" data-date="${x.date}" aria-pressed="${x.date === state.selDay}">
+      <b>${esc(fmtDay(x.date, { weekday: 'short', day: 'numeric' }))}${x.date === todayDate() ? ` <span class="td">· ${esc(t('today'))}</span>` : ''}</b>
+      ${x.tMax.toFixed(0)}° / ${x.tMin.toFixed(0)}°
+      <span class="bar"><i style="width:${((x.rain || 0) / maxRain * 100).toFixed(0)}%"></i></span>
+      💧 ${fx(x.rain || 0, 1)} mm<br>💨 ${x.wind.toFixed(0)} km/h<br>☀️ ${esc(t('et'))} ${x.et0 != null ? fx(x.et0, 1) : '–'}
+    </button>`).join('');
+  const sel = box.querySelector('[aria-pressed="true"]');
+  if (sel && box.scrollTo) box.scrollTo({ left: sel.offsetLeft - box.clientWidth / 2 + sel.clientWidth / 2 });
+  renderDayDetail();
+}
+let minis = [];
+const MINI = { W: 300, H: 120, l: 36, r: 8, t: 8, b: 20 };
+function miniChart(spec, vals, startIdx) {
+  const { W, H, l, r, t: mt, b } = MINI, n = vals.length, v = vals.map(q => q ?? 0);
+  let lo = spec.zero ? 0 : Math.min(...v), hi = Math.max(...v);
+  if (spec.zero) hi = Math.max(hi, spec.minHi); else { const pad = (hi - lo) * 0.15 || 1; lo = Math.floor(lo - pad); hi = Math.ceil(hi + pad); }
+  const x = i => l + (i + 0.5) / n * (W - l - r);
+  const y = q => mt + (1 - (q - lo) / ((hi - lo) || 1)) * (H - mt - b);
+  let g = '';
+  [lo, (lo + hi) / 2, hi].forEach(q => { g += `<line x1="${l}" x2="${W - r}" y1="${y(q)}" y2="${y(q)}" stroke="var(--grid)"/><text x="${l - 5}" y="${y(q) + 4}" text-anchor="end">${spec.tick(q)}</text>`; });
+  [0, 6, 12, 18].forEach(k => { g += `<text x="${x(k)}" y="${H - 5}" text-anchor="middle">${String(k).padStart(2, '0')}h</text>`; });
+  if (spec.kind === 'bars') {
+    const bw = (W - l - r) / n * 0.7;
+    v.forEach((q, i) => { if (q > 0) g += `<rect x="${x(i) - bw / 2}" y="${y(q)}" width="${bw}" height="${y(lo) - y(q)}" rx="2" fill="var(${spec.color})"/>`; });
+  } else {
+    g += `<polyline fill="none" stroke="var(${spec.color})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${v.map((q, i) => `${x(i).toFixed(1)},${y(q).toFixed(1)}`).join(' ')}"/>`;
+  }
+  g += `<line class="hov" y1="${mt}" y2="${H - b}" stroke="var(--ink2)" opacity=".6" visibility="hidden"/><line class="cur" y1="${mt}" y2="${H - b}" stroke="var(--ink)" stroke-width="1.5" visibility="hidden"/>`;
+  minis.push({ id: spec.id, x, n, vals: v, spec, start: startIdx });
+  return `<svg viewBox="0 0 ${W} ${H}" data-mini="${spec.id}" role="img" aria-label="${esc(t('miniAria', { title: spec.title }))}">${g}</svg>`;
+}
+function renderDayDetail() {
+  const box = $('#dayDetail'); if (!box) return;
+  const h = state.data.hourly, day = state.selDay;
+  const s = h.time.findIndex(tm => tm.startsWith(day)); if (s < 0) { box.innerHTML = ''; return; }
+  let e = s; while (e < h.time.length && h.time[e].startsWith(day)) e++;
+  state.dayStart = s; state.dayN = e - s; minis = [];
+  // size the three hourly charts to their real pixel width (mirrors the CSS grid below)
+  const cw = box.clientWidth || 900, cols = clamp(Math.floor((cw + 12) / 242), 1, 3);
+  MINI.W = Math.max(230, Math.floor((cw - 12 * (cols - 1)) / cols));
+  const specs = [
+    { id: 'rain', title: t('m.rain'), unit: 'mm', kind: 'bars', color: '--s1', zero: true, minHi: 2, tick: q => fx(q, q < 10 ? 1 : 0), val: q => fx(q, 1), vals: h.rain },
+    { id: 'temp', title: t('m.temp'), unit: '°C', kind: 'line', color: '--s2', tick: q => q.toFixed(0), val: q => fx(q, 1), vals: h.temp },
+    { id: 'wind', title: t('m.wind'), unit: 'km/h', kind: 'line', color: '--s7', zero: true, minHi: 10, tick: q => q.toFixed(0), val: q => q.toFixed(0), vals: h.wind },
+  ];
+  box.innerHTML = `<h2 style="margin-top:14px">${esc(fmtDay(day, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${esc(t('hourByHour'))}</h2>
+    <div class="minis">${specs.map(sp => `<div class="mini"><h3><span>${esc(sp.title)}</span><span class="ro" data-ro="${sp.id}"></span></h3>${miniChart(sp, sp.vals.slice(s, e), s)}</div>`).join('')}</div>
+    <p class="note">${esc(t('miniHint'))}</p>`;
+  bindMinis();
+  updateMiniCursor();
+}
+function miniReadout(local) {
+  for (const m of minis) {
+    const ro = document.querySelector(`[data-ro="${m.id}"]`);
+    if (ro) ro.textContent = local == null ? '' : `${hh(state.data.hourly.time[m.start + local])} · ${m.spec.val(m.vals[local])} ${m.spec.unit}`;
+  }
+}
+function updateMiniCursor() {
+  const local = state.t - state.dayStart, inDay = local >= 0 && local < state.dayN;
+  for (const m of minis) {
+    const cur = document.querySelector(`svg[data-mini="${m.id}"] .cur`); if (!cur) continue;
+    cur.setAttribute('visibility', inDay ? 'visible' : 'hidden');
+    if (inDay) { cur.setAttribute('x1', m.x(local)); cur.setAttribute('x2', m.x(local)); }
+  }
+  miniReadout(inDay ? local : null);
+}
+function bindMinis() {
+  document.querySelectorAll('svg[data-mini]').forEach(svg => {
+    const idxOf = e => {
+      const r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) * MINI.W / (r.width || MINI.W), n = state.dayN;
+      return clamp(Math.floor((sx - MINI.l) / (MINI.W - MINI.l - MINI.r) * n), 0, n - 1);
+    };
+    svg.addEventListener('pointermove', e => {
+      const i = idxOf(e);
+      for (const m of minis) {
+        const hv = document.querySelector(`svg[data-mini="${m.id}"] .hov`);
+        hv.setAttribute('x1', m.x(i)); hv.setAttribute('x2', m.x(i)); hv.setAttribute('visibility', 'visible');
+      }
+      miniReadout(i);
+    });
+    svg.addEventListener('pointerleave', () => {
+      document.querySelectorAll('svg[data-mini] .hov').forEach(l => l.setAttribute('visibility', 'hidden'));
+      updateMiniCursor();
+    });
+    svg.addEventListener('click', e => setT(state.dayStart + idxOf(e)));
+  });
+}
+
+// ---------- time control ----------
+function setT(i, keepPlaying) {
+  if (!state.data) return;
+  if (!keepPlaying) stopPlay();
+  state.t = clamp(i, 0, state.data.hourly.time.length - 1);
+  updateTime();
+}
+function updateTime() {
+  const d = state.data; if (!d) return;
+  const i = state.t, day = d.hourly.time[i].slice(0, 10);
+  $('#soilPanel').innerHTML = soilPanelHTML(i);
+  $('#heroPanel').innerHTML = heroHTML(i);
+  setCursor();
+  const n = d.hourly.time.length;
+  $('#range').max = n - 1; $('#range').value = i;
+  $('#tlabel').textContent = fmtTime(d.hourly.time[i]);
+  $('#trel').textContent = relLabel(i);
+  const f = d.nowIdx / (n - 1);
+  $('#nowtick').style.left = `calc(${f * 100}% + ${(0.5 - f) * 16}px - 1px)`;
+  if (day !== state.selDay) { state.selDay = day; renderDays(); } else updateMiniCursor();
+}
+let timer = null;
+function stopPlay() { clearInterval(timer); timer = null; state.playing = false; const b = $('#play'); b.textContent = '▶'; b.setAttribute('aria-label', t('play')); }
+function togglePlay() {
+  if (state.playing) return stopPlay();
+  if (!state.data) return;
+  const n = state.data.hourly.time.length;
+  if (state.t >= n - 1) state.t = 0;
+  state.playing = true;
+  const b = $('#play'); b.textContent = '⏸'; b.setAttribute('aria-label', t('pause'));
+  timer = setInterval(() => { if (state.t >= n - 1) return stopPlay(); setT(state.t + 1, true); }, 70);
+}
+
+// ---------- page skeleton ----------
+function renderApp() {
+  $('#app').innerHTML = `
+  <div class="grid">
+    <section class="card"><h2>${esc(t('soilProfile'))}</h2><div id="soilPanel"></div>
+      <p class="note">${esc(t('soilNote'))}</p></section>
+    <section class="card" id="heroPanel"></section>
+    <section class="card full">
+      <h2>${esc(t('chartTitle'))}</h2>
+      <div class="legend" id="chartLegend"></div>
+      <div class="chartwrap" id="chartWrap"></div>
+      <details>${detailsHTML()}</details>
+    </section>
+    <section class="card full">
+      <h2>${esc(t('daysTitle'))}</h2>
+      <div class="days" id="days"></div>
+      <div id="dayDetail"></div>
+    </section>
+  </div>`;
+  state.selDay = null;
+  renderChart();
+  updateTime();
+  $('#scrub').hidden = false;
+}
+
+// ---------- static text, selects ----------
+let mapState = 'idle';   // idle | ready | failed
+function buildSelects() {
+  const plant = $('#plant'), soil = $('#soil'), lang = $('#lang');
+  plant.innerHTML = Object.keys(PLANTS).map(k => `<option value="${k}">${esc(plantName(k))}</option>`).join('');
+  soil.innerHTML = Object.keys(SOILS).map(k => `<option value="${k}">${esc(soilName(k))}</option>`).join('');
+  if (!lang.options.length) lang.innerHTML = Object.entries(LANGS).map(([k, l]) => `<option value="${k}">${esc(l.label)}</option>`).join('');
+  plant.value = state.plant; soil.value = state.soil; lang.value = state.lang;
+}
+function applyStatic() {
+  document.documentElement.lang = state.lang;
+  document.title = t('title');
+  $('h1').textContent = '🌱 ' + t('title');
+  $('#q').placeholder = t('search'); $('#q').setAttribute('aria-label', t('searchAria'));
+  $('#locate').setAttribute('aria-label', t('locate')); $('#locate').title = t('locate');
+  $('#mapBtn').textContent = '🗺 ' + t('mapBtn'); $('#mapBtn').title = t('mapTitle');
+  $('#saveBtn').title = t('saveTitle');
+  $('#plant').setAttribute('aria-label', t('plantAria'));
+  $('#soil').setAttribute('aria-label', t('soilAria'));
+  $('#lang').setAttribute('aria-label', t('langAria'));
+  buildSelects();
+  $('#mapCard h2').textContent = t('mapHint');
+  if (mapState === 'idle') $('#map').textContent = t('mapLoading');
+  else if (mapState === 'failed') $('#map').textContent = t('mapFail');
+  $('#scrub').setAttribute('aria-label', t('timeControl'));
+  const pb = $('#play'); pb.title = t('playTitle'); pb.setAttribute('aria-label', t(state.playing ? 'pause' : 'play'));
+  $('#range').setAttribute('aria-label', t('rangeAria')); $('#nowtick').title = t('now');
+  const ends = document.querySelectorAll('.ends span'); ends[0].textContent = t('ago5'); ends[1].textContent = t('ahead7');
+  $('#nowBtn').textContent = t('now');
+  $('.foot').innerHTML = t('footer', { link: '<a href="https://open-meteo.com">Open-Meteo.com</a>' });
+}
+
+// ---------- places ----------
+function updateSaveBtn() {
+  const on = state.place && state.saved.some(p => samePlace(p, state.place));
+  const b = $('#saveBtn');
+  b.textContent = on ? '★ ' + t('saved') : '☆ ' + t('save');
+  b.setAttribute('aria-pressed', !!on);
+}
+function renderSaved() {
+  const box = $('#saved');
+  if (!state.saved.length) { box.innerHTML = ''; box.hidden = true; state.compare = false; renderCompare(); return; }
+  box.hidden = false;
+  box.innerHTML = state.saved.map((p, i) => `<span class="chip ${samePlace(p, state.place) ? 'on' : ''}"><button data-go="${i}">${esc(p.name)}</button><button class="x" data-rm="${i}" aria-label="${esc(t('removeAria', { name: p.name }))}">×</button></span>`).join('')
+    + `<button id="cmpBtn" aria-pressed="${state.compare}">⚖ ${esc(t('compare'))}</button>`;
+}
+function setPlace(p) {
+  state.place = { lat: p.lat, lon: p.lon, name: p.name };
+  store.set('place', state.place);
+  stopPlay();
+  updateSaveBtn(); renderSaved(); syncMap();
+  return load();
+}
+async function load() {
+  const app = $('#app');
+  app.style.opacity = 0.5;
+  try {
+    const d = await fetchWeather(state.place);
+    state.data = d;
+    state.rz = rzSeries(d, PLANTS[state.plant]);
+    state.t = d.nowIdx;
+    renderApp();
+  } catch (e) {
+    state.data = null;
+    $('#scrub').hidden = true;
+    app.innerHTML = `<div class="err">${esc(t('err.load', { msg: e.message }))}</div>`;
+  }
+  app.style.opacity = 1;
+}
+function recompute() {
+  if (!state.data) return;
+  state.rz = rzSeries(state.data, PLANTS[state.plant]);
+  renderChart(); updateTime(); renderCompare();
+  const det = $('#app').querySelector('details'); if (det) det.innerHTML = detailsHTML();
+}
+
+// ---------- compare saved places ----------
+let cmpToken = 0;
+function cmpCardHTML(d, rz) {
+  const soil = SOILS[state.soil], plant = PLANTS[state.plant], a = analyze(d, rz, d.nowIdx, soil, state.plant);
+  const W = 220, H = 56, n = rz.length;
+  let maxV = soil.fc * 1.25; for (const v of rz) if (v > maxV) maxV = v;
+  const x = i => 2 + i / (n - 1) * (W - 4), y = v => 4 + (1 - v / maxV) * (H - 8);
+  const thr = soil.wilt + plant.irrigate * (soil.fc - soil.wilt);
+  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('lg.rz', { n: plant.root }))}">
+    <rect x="2" y="${y(soil.fc)}" width="${W - 4}" height="${y(soil.wilt) - y(soil.fc)}" fill="var(--s1)" opacity=".08"/>
+    <line x1="2" x2="${W - 2}" y1="${y(thr)}" y2="${y(thr)}" stroke="var(--ink2)" stroke-dasharray="5 4" opacity=".6"/>
+    <line x1="${x(d.nowIdx)}" x2="${x(d.nowIdx)}" y1="2" y2="${H - 2}" stroke="var(--ink2)" stroke-dasharray="3 3"/>
+    <polyline fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" points="${rz.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}"/></svg>`;
+  return `<b>${a.emoji} ${esc(a.headline)}</b><span class="row"><strong>${a.availPct}%</strong> ${esc(t('cmpAvail'))} · ${d.hourly.temp[d.nowIdx].toFixed(0)}°C</span>${svg}<span class="row">${esc(t('cmpRain', { mm: a.rain48.toFixed(0) }))}</span>`;
+}
+function renderCompare() {
+  const box = $('#compare');
+  if (!state.compare || !state.saved.length) { box.hidden = true; cmpToken++; return; }
+  box.hidden = false;
+  const token = ++cmpToken;
+  box.innerHTML = `<h2>${esc(t('cmpTitle', { plant: plantName(state.plant), soil: soilName(state.soil) }))}</h2>
+    <div class="cmp">${state.saved.map((p, i) => `<button class="cmpcard" data-go="${i}"><b>${esc(p.name)}</b><span class="row" id="cmp${i}">${esc(t('loading'))}</span></button>`).join('')}</div>
+    <p class="note">${esc(t('cmpNote'))}</p>`;
+  state.saved.forEach(async (p, i) => {
+    let html;
+    try { const d = await fetchWeather(p); html = cmpCardHTML(d, rzSeries(d, PLANTS[state.plant])); }
+    catch (e) { html = esc(t('cmpFail', { msg: e.message })); }
+    if (token !== cmpToken) return;
+    const slot = $(`#cmp${i}`);
+    if (slot) { slot.className = ''; slot.style.display = 'block'; slot.innerHTML = html; }
+  });
+}
+
+// ---------- map (Leaflet loads on first use) ----------
+let map = null, mapLayer = null;
+function loadLeaflet() {
+  return new Promise((resolve, reject) => {
+    if (window.L) return resolve();
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.append(css);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = resolve; s.onerror = () => reject(new Error('Leaflet failed to load'));
+    document.head.append(s);
+  });
+}
+async function ensureMap() {
+  try { await loadLeaflet(); }
+  catch { mapState = 'failed'; $('#map').textContent = t('mapFail'); return; }
+  if (!map) {
+    mapState = 'ready';
+    $('#map').textContent = '';
+    map = L.map('map').setView([state.place.lat, state.place.lon], 6);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap contributors' }).addTo(map);
+    mapLayer = L.layerGroup().addTo(map);
+    map.on('click', e => { const ll = e.latlng.wrap ? e.latlng.wrap() : e.latlng; pickOnMap(ll.lat, ll.lng); });
+  }
+  setTimeout(() => map.invalidateSize(), 60);
+  syncMap(true);
+}
+function syncMap(recenter) {
+  if (!map || !state.place) return;
+  mapLayer.clearLayers();
+  state.saved.forEach(p => { if (!samePlace(p, state.place)) L.circleMarker([p.lat, p.lon], { radius: 6, color: '#52514e', weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(mapLayer); });
+  L.circleMarker([state.place.lat, state.place.lon], { radius: 9, color: '#fff', weight: 2, fillColor: '#2a78d6', fillOpacity: 1 }).addTo(mapLayer);
+  if (recenter || !map.getBounds().contains([state.place.lat, state.place.lon])) map.setView([state.place.lat, state.place.lon], map.getZoom());
+}
+async function pickOnMap(lat, lon) {
+  lat = +lat.toFixed(3); lon = +lon.toFixed(3);
+  const p = { lat, lon, name: t('pin', { lat: fx(lat, 2), lon: fx(lon, 2) }) };
+  setPlace(p);
+  try {
+    const j = await (await fetch(`/api/reverse?lat=${lat}&lon=${lon}&lang=${state.lang}`)).json();
+    if (j.name && samePlace(state.place, p)) renamePlace(j.name);
+  } catch {}
+}
+function renamePlace(name) {
+  state.place.name = name; store.set('place', state.place);
+  const s = state.saved.find(q => samePlace(q, state.place)); if (s) { s.name = name; store.set('saved', state.saved); }
+  renderSaved(); if (state.data) updateTime();
+}
+
+// ---------- events ----------
+let searchTimer, hl = -1, lastResults = [];
+function pickResult(r) {
+  $('#q').value = ''; $('#results').hidden = true; hl = -1;
+  setPlace({ lat: r.lat, lon: r.lon, name: `${r.name}${r.country ? ', ' + r.country : ''}` });
+}
+$('#q').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  const q = e.target.value;
+  if (q.trim().length < 2) { $('#results').hidden = true; return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const { results } = await (await fetch(`/api/search?q=${encodeURIComponent(q)}&lang=${state.lang}`)).json();
+      lastResults = results; hl = results.length ? 0 : -1;
+      const box = $('#results');
+      box.innerHTML = results.map((r, i) => `<div data-i="${i}" class="${i === hl ? 'hl' : ''}">${esc(r.name)} <small>${esc([r.admin, r.country].filter(Boolean).join(', '))}</small></div>`).join('') || `<div><small>${esc(t('noMatches'))}</small></div>`;
+      box.hidden = false;
+    } catch {}
+  }, 250);
+});
+$('#results').addEventListener('click', e => { const tg = e.target.closest('[data-i]'); if (tg) pickResult(lastResults[tg.dataset.i]); });
+$('#q').addEventListener('keydown', e => {
+  const box = $('#results');
+  if (e.key === 'Escape') box.hidden = true;
+  else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && lastResults.length && !box.hidden) {
+    hl = (hl + (e.key === 'ArrowDown' ? 1 : -1) + lastResults.length) % lastResults.length;
+    box.querySelectorAll('[data-i]').forEach((d, i) => d.classList.toggle('hl', i === hl)); e.preventDefault();
+  } else if (e.key === 'Enter' && lastResults[hl] && !box.hidden) { pickResult(lastResults[hl]); e.preventDefault(); }
+});
+document.addEventListener('click', e => { if (!e.target.closest('.search')) $('#results').hidden = true; });
+
+$('#soil').addEventListener('change', e => { state.soil = e.target.value; store.set('soil', state.soil); recompute(); });
+$('#plant').addEventListener('change', e => { state.plant = e.target.value; store.set('plant', state.plant); recompute(); });
+$('#lang').addEventListener('change', e => {
+  state.lang = e.target.value; store.set('lang', state.lang);
+  applyStatic(); updateSaveBtn(); renderSaved(); renderCompare();
+  if (state.data) renderApp(); else if (state.place) load();
+});
+$('#locate').addEventListener('click', () => {
+  if (!navigator.geolocation) return alert(t('geo.none'));
+  navigator.geolocation.getCurrentPosition(
+    p => setPlace({ lat: +p.coords.latitude.toFixed(3), lon: +p.coords.longitude.toFixed(3), name: t('yourLocation') }),
+    () => alert(t('geo.denied')));
+});
+$('#mapBtn').addEventListener('click', () => {
+  const card = $('#mapCard'), open = card.hidden;
+  card.hidden = !open; $('#mapBtn').setAttribute('aria-pressed', open);
+  if (open) ensureMap();
+});
+$('#saveBtn').addEventListener('click', () => {
+  const i = state.saved.findIndex(p => samePlace(p, state.place));
+  if (i >= 0) state.saved.splice(i, 1); else state.saved.push({ ...state.place });
+  store.set('saved', state.saved);
+  updateSaveBtn(); renderSaved(); renderCompare(); syncMap();
+});
+$('#saved').addEventListener('click', e => {
+  const go = e.target.closest('[data-go]'), rm = e.target.closest('[data-rm]');
+  if (go) setPlace(state.saved[go.dataset.go]);
+  else if (rm) { state.saved.splice(+rm.dataset.rm, 1); store.set('saved', state.saved); updateSaveBtn(); renderSaved(); renderCompare(); syncMap(); }
+  else if (e.target.closest('#cmpBtn')) { state.compare = !state.compare; renderSaved(); renderCompare(); }
+});
+$('#compare').addEventListener('click', e => { const c = e.target.closest('[data-go]'); if (c) { setPlace(state.saved[c.dataset.go]); window.scrollTo?.({ top: 0, behavior: 'smooth' }); } });
+$('#app').addEventListener('click', e => {
+  const day = e.target.closest('.day'), ser = e.target.closest('[data-series]');
+  if (day) {
+    const date = day.dataset.date, d = state.data;
+    setT(date === todayDate() ? d.nowIdx : d.hourly.time.findIndex(tm => tm.startsWith(date)) + 12);
+  } else if (ser) {
+    const id = ser.dataset.series;
+    if (state.hidden.has(id)) state.hidden.delete(id); else if (state.hidden.size < SERIES.length - 1) state.hidden.add(id);
+    renderChart();
+  }
+});
+$('#range').addEventListener('input', e => setT(+e.target.value));
+$('#play').addEventListener('click', togglePlay);
+$('#nowBtn').addEventListener('click', () => state.data && setT(state.data.nowIdx));
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const wrap = $('#chartWrap');
+    if (!state.data || !wrap || Math.abs(wrap.clientWidth - lastChartW) < 2) return;
+    renderChart(); renderDayDetail();
+  }, 150);
+});
+
+// ---------- boot ----------
+(function boot() {
+  applyStatic();
+  $('#app').innerHTML = `<div class="err">${esc(t('loading'))}</div>`;
+  const saved = store.get('place', null);
+  const p = saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lon) ? saved : { lat: 40.417, lon: -3.704, name: 'Madrid, Spain' };
+  setPlace(p);
+})();
+</script>
+</body>
+</html>
