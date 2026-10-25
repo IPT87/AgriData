@@ -137,7 +137,10 @@ async function handleReverse(params) {
 }
 
 // ---------- server ----------
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
+};
 const PUBLIC = path.join(__dirname, 'public');
 
 const server = http.createServer(async (req, res) => {

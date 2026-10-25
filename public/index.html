@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Soil Moisture</title>
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
 <style>
   :root {
     color-scheme: light dark;
@@ -104,12 +109,23 @@
   .legend button[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
   .legend .key { width: 16px; height: 3px; border-radius: 2px; }
   .legend button[aria-pressed] { background: var(--card); color: var(--ink); border-color: var(--border); }
+  /* checkbox that shows each line is a toggle */
+  .legend .chk { width: 15px; height: 15px; border: 1.5px solid var(--ink2); border-radius: 4px; display: inline-grid; place-items: center; flex: none; font-size: 11px; line-height: 1; }
+  .legend button[aria-pressed="true"] .chk { background: var(--ink2); color: var(--card); }
+  .legend button[aria-pressed="true"] .chk::before { content: "✓"; font-weight: 700; }
+  .legend button:hover { border-color: var(--ink2); }
+  .hint { font-size: .82rem; color: var(--ink2); margin: 0 0 8px; }
   .note { font-size: .82rem; color: var(--ink2); margin: 8px 0 0; }
   details { margin-top: 10px; font-size: .88rem; }
   summary { cursor: pointer; color: var(--ink2); }
-  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  details { min-width: 0; }
+  /* the table scrolls inside its own box, so long headers can never push the page sideways */
+  .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
   th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--grid); }
-  th:first-child, td:first-child { text-align: left; }
+  th { vertical-align: bottom; }
+  td { white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--card); border-right: 1px solid var(--grid); }
 
   .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
   .day { flex: 1 0 104px; text-align: left; padding: 8px 10px; font-size: .82rem; line-height: 1.4; scroll-snap-align: center; }
@@ -136,6 +152,8 @@
     .scrubrow .rangebox { order: 3; flex: 1 1 100%; }
     .tl { flex: 1; text-align: left; min-width: 0; }
     .hero .big { font-size: 1.3rem; }
+    table { font-size: .78rem; }
+    th, td { padding: 4px 6px; }
   }
   .foot { color: var(--ink2); font-size: .8rem; margin: 18px 0 6px; text-align: center; }
   .foot a { color: inherit; }
@@ -236,6 +254,7 @@ const I18N = {
     soilNote: 'Layers aren’t drawn to scale. Numbers are volumetric water content. The dashed line shows how deep your plant’s roots reach.',
     chartTitle: 'Soil moisture · past 5 days & 7-day forecast',
     'lg.rz': 'Root zone (0–{n} cm)', 'lg.surface': 'Surface (0–1 cm)', 'lg.deep': 'Deep (27–81 cm)', rzShort: 'Root zone',
+    legendHint: 'Tip: click or tap a name to show or hide its line · click or tap the chart to jump to that moment',
     'c.past': 'past 5 days', 'c.forecast': 'forecast', 'c.fc': 'field capacity', 'c.thr': 'water below this', 'c.wp': 'wilting point', 'c.now': 'now',
     chartAria: 'Soil moisture over time. Use the left and right arrow keys to move through time.', 'tip.rain': 'Rain {mm} mm',
     viewTable: 'View as table', 'tbl.day': 'Day', 'tbl.rz': 'Root zone', 'tbl.surface': 'Surface', 'tbl.deep': 'Deep', 'tbl.rain': 'Rain mm', 'tbl.maxmin': 'Max / min',
@@ -281,6 +300,7 @@ const I18N = {
     soilNote: 'Las capas no están a escala. Los números son contenido volumétrico de agua. La línea discontinua indica hasta dónde llegan las raíces de tu planta.',
     chartTitle: 'Humedad del suelo · últimos 5 días y previsión a 7 días',
     'lg.rz': 'Zona radicular (0–{n} cm)', 'lg.surface': 'Superficie (0–1 cm)', 'lg.deep': 'Profundo (27–81 cm)', rzShort: 'Zona radicular',
+    legendHint: 'Consejo: haz clic o toca un nombre para mostrar u ocultar su línea · haz clic o toca el gráfico para ir a ese momento',
     'c.past': 'últimos 5 días', 'c.forecast': 'previsión', 'c.fc': 'capacidad de campo', 'c.thr': 'regar por debajo', 'c.wp': 'punto de marchitez', 'c.now': 'ahora',
     chartAria: 'Humedad del suelo a lo largo del tiempo. Usa las flechas izquierda y derecha para moverte en el tiempo.', 'tip.rain': 'Lluvia {mm} mm',
     viewTable: 'Ver como tabla', 'tbl.day': 'Día', 'tbl.rz': 'Zona radicular', 'tbl.surface': 'Superficie', 'tbl.deep': 'Profundo', 'tbl.rain': 'Lluvia mm', 'tbl.maxmin': 'Máx. / mín.',
@@ -326,6 +346,7 @@ const I18N = {
     soilNote: 'Les couches ne sont pas à l’échelle. Les chiffres sont des teneurs volumiques en eau. La ligne en pointillés montre la profondeur atteinte par les racines de votre plante.',
     chartTitle: 'Humidité du sol · 5 derniers jours et prévisions à 7 jours',
     'lg.rz': 'Zone racinaire (0–{n} cm)', 'lg.surface': 'Surface (0–1 cm)', 'lg.deep': 'Profond (27–81 cm)', rzShort: 'Zone racinaire',
+    legendHint: 'Astuce : cliquez ou touchez un nom pour afficher ou masquer sa courbe · cliquez ou touchez le graphique pour aller à ce moment',
     'c.past': '5 derniers jours', 'c.forecast': 'prévisions', 'c.fc': 'capacité au champ', 'c.thr': 'arroser sous ce niveau', 'c.wp': 'point de flétrissement', 'c.now': 'maint.',
     chartAria: 'Humidité du sol au fil du temps. Utilisez les flèches gauche et droite pour vous déplacer dans le temps.', 'tip.rain': 'Pluie {mm} mm',
     viewTable: 'Voir sous forme de tableau', 'tbl.day': 'Jour', 'tbl.rz': 'Zone racinaire', 'tbl.surface': 'Surface', 'tbl.deep': 'Profond', 'tbl.rain': 'Pluie mm', 'tbl.maxmin': 'Max / min',
@@ -371,6 +392,7 @@ const I18N = {
     soilNote: 'Die Schichten sind nicht maßstabsgetreu. Die Zahlen sind volumetrische Wassergehalte. Die gestrichelte Linie zeigt, wie tief die Wurzeln deiner Pflanze reichen.',
     chartTitle: 'Bodenfeuchte · letzte 5 Tage und 7-Tage-Vorhersage',
     'lg.rz': 'Wurzelzone (0–{n} cm)', 'lg.surface': 'Oberfläche (0–1 cm)', 'lg.deep': 'Tief (27–81 cm)', rzShort: 'Wurzelzone',
+    legendHint: 'Tipp: Namen anklicken oder antippen, um die Linie ein- oder auszublenden · ins Diagramm klicken oder tippen, um zu diesem Zeitpunkt zu springen',
     'c.past': 'letzte 5 Tage', 'c.forecast': 'Vorhersage', 'c.fc': 'Feldkapazität', 'c.thr': 'gießen unter diesem Wert', 'c.wp': 'Welkepunkt', 'c.now': 'jetzt',
     chartAria: 'Bodenfeuchte im Zeitverlauf. Mit den Pfeiltasten links und rechts durch die Zeit gehen.', 'tip.rain': 'Regen {mm} mm',
     viewTable: 'Als Tabelle anzeigen', 'tbl.day': 'Tag', 'tbl.rz': 'Wurzelzone', 'tbl.surface': 'Oberfläche', 'tbl.deep': 'Tief', 'tbl.rain': 'Regen mm', 'tbl.maxmin': 'Max / Min',
@@ -416,6 +438,7 @@ const I18N = {
     soilNote: 'As camadas não estão em escala. Os números são teor volumétrico de água. A linha tracejada mostra até onde chegam as raízes da sua planta.',
     chartTitle: 'Umidade do solo · últimos 5 dias e previsão de 7 dias',
     'lg.rz': 'Zona radicular (0–{n} cm)', 'lg.surface': 'Superfície (0–1 cm)', 'lg.deep': 'Profundo (27–81 cm)', rzShort: 'Zona radicular',
+    legendHint: 'Dica: clique ou toque em um nome para mostrar ou ocultar a linha · clique ou toque no gráfico para ir a esse momento',
     'c.past': 'últimos 5 dias', 'c.forecast': 'previsão', 'c.fc': 'capacidade de campo', 'c.thr': 'regar abaixo disto', 'c.wp': 'ponto de murcha', 'c.now': 'agora',
     chartAria: 'Umidade do solo ao longo do tempo. Use as setas esquerda e direita para se mover no tempo.', 'tip.rain': 'Chuva {mm} mm',
     viewTable: 'Ver como tabela', 'tbl.day': 'Dia', 'tbl.rz': 'Zona radicular', 'tbl.surface': 'Superfície', 'tbl.deep': 'Profundo', 'tbl.rain': 'Chuva mm', 'tbl.maxmin': 'Máx. / mín.',
@@ -461,6 +484,7 @@ const I18N = {
     soilNote: 'Слоевете не са изобразени в мащаб. Числата са обемна влажност. Пунктирната линия показва колко дълбоко достигат корените на растението.',
     chartTitle: 'Влажност на почвата · последни 5 дни и 7-дневна прогноза',
     'lg.rz': 'Зона на корените (0–{n} cm)', 'lg.surface': 'Повърхност (0–1 cm)', 'lg.deep': 'Дълбочина (27–81 cm)', rzShort: 'Зона на корените',
+    legendHint: 'Съвет: щракнете или докоснете име, за да покажете или скриете реда му · щракнете или докоснете диаграмата, за да преминете към този момент',
     'c.past': 'минали 5 дни', 'c.forecast': 'прогноза', 'c.fc': 'полев капацитет', 'c.thr': 'вода под това', 'c.wp': 'точка на уволнение', 'c.now': 'сега',
     chartAria: 'Влажност на почвата през времето. Използвайте левите и десните стрелки, за да се придвижите през времето.', 'tip.rain': 'Дъжд {mm} mm',
     viewTable: 'Преглед като таблица', 'tbl.day': 'Ден', 'tbl.rz': 'Зона на корените', 'tbl.surface': 'Повърхност', 'tbl.deep': 'Дълбочина', 'tbl.rain': 'Дъжд mm', 'tbl.maxmin': 'Макс / мин',
@@ -723,7 +747,7 @@ function chartSVG() {
 function renderChart() {
   const wrap = $('#chartWrap'); if (!wrap) return;
   sizeChart();
-  $('#chartLegend').innerHTML = SERIES.map(s => `<button data-series="${s.id}" aria-pressed="${!state.hidden.has(s.id)}"><span class="key" style="background:var(${s.color})"></span>${esc(serName(s.id))}</button>`).join('');
+  $('#chartLegend').innerHTML = SERIES.map(s => `<button data-series="${s.id}" aria-pressed="${!state.hidden.has(s.id)}" title="${esc(t('legendHint'))}"><span class="chk" aria-hidden="true"></span><span class="key" style="background:var(${s.color})"></span>${esc(serName(s.id))}</button>`).join('');
   const keep = wrap.scrollLeft;
   wrap.innerHTML = chartSVG();
   bindChart();
@@ -781,9 +805,9 @@ function tableHTML() {
   const rows = d.daily.map(day => {
     const idx = []; h.time.forEach((tm, i) => { if (tm.startsWith(day.date)) idx.push(i); });
     const avg = arr => idx.reduce((s, i) => s + arr[i], 0) / (idx.length || 1);
-    return `<tr><td>${esc(fmtDay(day.date, { weekday: 'short', day: 'numeric', month: 'short' }))}</td><td>${pct(avg(state.rz))}</td><td>${pct(avg(h.m[0]))}</td><td>${pct(avg(h.m[4]))}</td><td>${fx(day.rain || 0, 1)}</td><td>${day.tMax.toFixed(0)}° / ${day.tMin.toFixed(0)}°</td></tr>`;
+    return `<tr><td>${esc(fmtDay(day.date, { weekday: 'short', day: 'numeric' }))}</td><td>${pct(avg(state.rz))}</td><td>${pct(avg(h.m[0]))}</td><td>${pct(avg(h.m[4]))}</td><td>${fx(day.rain || 0, 1)}</td><td>${day.tMax.toFixed(0)}/${day.tMin.toFixed(0)}°</td></tr>`;
   }).join('');
-  return `<table><caption class="sr">${esc(t('tbl.caption'))}</caption><thead><tr><th>${esc(t('tbl.day'))}</th><th>${esc(t('tbl.rz'))}</th><th>${esc(t('tbl.surface'))}</th><th>${esc(t('tbl.deep'))}</th><th>${esc(t('tbl.rain'))}</th><th>${esc(t('tbl.maxmin'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<div class="tablewrap"><table><caption class="sr">${esc(t('tbl.caption'))}</caption><thead><tr><th>${esc(t('tbl.day'))}</th><th>${esc(t('tbl.rz'))}</th><th>${esc(t('tbl.surface'))}</th><th>${esc(t('tbl.deep'))}</th><th>${esc(t('tbl.rain'))}</th><th>${esc(t('tbl.maxmin'))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 const detailsHTML = () => `<summary>${esc(t('viewTable'))}</summary>${tableHTML()}`;
 
@@ -924,6 +948,7 @@ function renderApp() {
     <section class="card full">
       <h2>${esc(t('chartTitle'))}</h2>
       <div class="legend" id="chartLegend"></div>
+      <p class="hint">💡 ${esc(t('legendHint'))}</p>
       <div class="chartwrap" id="chartWrap"></div>
       <details>${detailsHTML()}</details>
     </section>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#5b3e29"/>
+  <!-- soil layers -->
+  <rect y="38" width="64" height="9" fill="#6e4b32"/>
+  <rect y="47" width="64" height="17" fill="#4a3220"/>
+  <!-- sprout -->
+  <path d="M32 40 V24" stroke="#5fc77f" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M32 27 C32 17 23 13 14 15 C14 24 21 29 32 27 Z" fill="#5fc77f"/>
+  <path d="M32 24 C32 15 40 10 50 12 C50 21 43 26 32 24 Z" fill="#8fe0a5"/>
+  <!-- water drop -->
+  <path d="M32 44 C27 50 25 53 25 56 C25 59.5 28.2 62 32 62 C35.8 62 39 59.5 39 56 C39 53 37 50 32 44 Z" fill="#4aa3f0"/>
+</svg>
