@@ -115,6 +115,7 @@
   .legend button[aria-pressed="true"] .chk::before { content: "✓"; font-weight: 700; }
   .legend button:hover { border-color: var(--ink2); }
   .hint { font-size: .82rem; color: var(--ink2); margin: 0 0 8px; }
+  .banner { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--border); border-left: 4px solid #eda100; border-radius: 10px; background: var(--card); font-size: .9rem; }
   .note { font-size: .82rem; color: var(--ink2); margin: 8px 0 0; }
   details { margin-top: 10px; font-size: .88rem; }
   summary { cursor: pointer; color: var(--ink2); }
@@ -222,7 +223,6 @@ const LANGS = {
   fr: { label: 'Français', locale: 'fr-FR' },
   de: { label: 'Deutsch', locale: 'de-DE' },
   pt: { label: 'Português', locale: 'pt-BR' },
-  bg: { label: 'Български', locale: 'bg-BG' },
 };
 // To add a language: add it to LANGS and copy one block below with all keys translated.
 const I18N = {
@@ -247,7 +247,7 @@ const I18N = {
     'adv.drying': 'Soil is drying out. Plan to water within a day or two, especially if roots are shallow.',
     'adv.et': ' Evaporative demand that day is about {mm} mm.',
     availableWater: 'of available water',
-    'tile.air': 'Air temperature', 'tile.soilTemp': 'Soil temp (6 cm)', 'tile.rh': 'Air humidity', 'tile.wind': 'Wind · gusts {g} km/h',
+    'tile.air': 'Air temperature', 'tile.soilTemp': 'Soil temp (6 cm)', 'tile.rh': 'Air humidity', 'tile.wind': 'Wind · gusts {g}',
     'tile.rain': 'Rain this hour · {mm} mm next 48 h', 'tile.rz': 'Root-zone moisture',
     'rel.future': 'Forecast · in {s}', 'rel.past': 'Past · {s} ago', 'unit.d': 'd', 'unit.h': 'h',
     soilProfile: 'Soil profile', roots: 'roots to {n} cm', soilImgAria: 'Soil moisture by depth at {when}',
@@ -269,6 +269,10 @@ const I18N = {
     'err.html': 'The server didn’t answer with data (HTTP {code}). Start it with “node server.js” and open http://localhost:3000 in the browser, not the HTML file directly.',
     'err.nodata': 'No soil moisture data for this spot (it may be water or ice). Try a point on land.',
     'err.load': 'Couldn’t load data: {msg}',
+    'err.rate': 'The weather service (Open-Meteo) is limiting requests right now. Please try again in a few minutes.',
+    'err.upstream': 'The weather service didn’t respond. Please try again shortly.',
+    'err.detail': 'Details: {reason}',
+    stale: 'Live data is temporarily unavailable. Showing the data saved at {time}.',
     'geo.none': 'Your browser has no location support. Use the search box instead.', 'geo.denied': 'Location permission denied. Use the search box or the map instead.',
     yourLocation: 'Your location', noMatches: 'No matches', pin: 'Pin {lat}, {lon}',
   },
@@ -293,7 +297,7 @@ const I18N = {
     'adv.drying': 'El suelo se está secando. Planea regar en uno o dos días, sobre todo si las raíces son superficiales.',
     'adv.et': ' La demanda evaporativa de ese día ronda los {mm} mm.',
     availableWater: 'del agua disponible',
-    'tile.air': 'Temperatura del aire', 'tile.soilTemp': 'Temp. del suelo (6 cm)', 'tile.rh': 'Humedad del aire', 'tile.wind': 'Viento · rachas {g} km/h',
+    'tile.air': 'Temperatura del aire', 'tile.soilTemp': 'Temp. del suelo (6 cm)', 'tile.rh': 'Humedad del aire', 'tile.wind': 'Viento · rachas {g}',
     'tile.rain': 'Lluvia esta hora · {mm} mm en 48 h', 'tile.rz': 'Humedad de la zona radicular',
     'rel.future': 'Previsión · dentro de {s}', 'rel.past': 'Pasado · hace {s}', 'unit.d': 'd', 'unit.h': 'h',
     soilProfile: 'Perfil del suelo', roots: 'raíces hasta {n} cm', soilImgAria: 'Humedad del suelo por profundidad el {when}',
@@ -315,6 +319,10 @@ const I18N = {
     'err.html': 'El servidor no respondió con datos (HTTP {code}). Inícialo con “node server.js” y abre http://localhost:3000 en el navegador, no el archivo HTML directamente.',
     'err.nodata': 'No hay datos de humedad del suelo para este punto (puede ser agua o hielo). Prueba con un punto en tierra firme.',
     'err.load': 'No se pudieron cargar los datos: {msg}',
+    'err.rate': 'El servicio meteorológico (Open-Meteo) está limitando las solicitudes ahora mismo. Inténtalo de nuevo en unos minutos.',
+    'err.upstream': 'El servicio meteorológico no ha respondido. Inténtalo de nuevo en breve.',
+    'err.detail': 'Detalles: {reason}',
+    stale: 'Los datos en directo no están disponibles temporalmente. Se muestran los datos guardados a las {time}.',
     'geo.none': 'Tu navegador no admite la ubicación. Usa el buscador.', 'geo.denied': 'Permiso de ubicación denegado. Usa el buscador o el mapa.',
     yourLocation: 'Tu ubicación', noMatches: 'Sin resultados', pin: 'Punto {lat}, {lon}',
   },
@@ -339,7 +347,7 @@ const I18N = {
     'adv.drying': 'Le sol se dessèche. Prévoyez d’arroser d’ici un ou deux jours, surtout si les racines sont superficielles.',
     'adv.et': ' La demande évaporative ce jour-là est d’environ {mm} mm.',
     availableWater: 'd’eau disponible',
-    'tile.air': 'Température de l’air', 'tile.soilTemp': 'Temp. du sol (6 cm)', 'tile.rh': 'Humidité de l’air', 'tile.wind': 'Vent · rafales {g} km/h',
+    'tile.air': 'Température de l’air', 'tile.soilTemp': 'Temp. du sol (6 cm)', 'tile.rh': 'Humidité de l’air', 'tile.wind': 'Vent · rafales {g}',
     'tile.rain': 'Pluie cette heure · {mm} mm sur 48 h', 'tile.rz': 'Humidité de la zone racinaire',
     'rel.future': 'Prévision · dans {s}', 'rel.past': 'Passé · il y a {s}', 'unit.d': 'j', 'unit.h': 'h',
     soilProfile: 'Profil du sol', roots: 'racines jusqu’à {n} cm', soilImgAria: 'Humidité du sol par profondeur, {when}',
@@ -361,6 +369,10 @@ const I18N = {
     'err.html': 'Le serveur n’a pas renvoyé de données (HTTP {code}). Lancez-le avec « node server.js » et ouvrez http://localhost:3000 dans le navigateur, pas directement le fichier HTML.',
     'err.nodata': 'Pas de données d’humidité du sol pour cet endroit (eau ou glace ?). Essayez un point sur la terre ferme.',
     'err.load': 'Impossible de charger les données : {msg}',
+    'err.rate': 'Le service météo (Open-Meteo) limite les requêtes en ce moment. Réessayez dans quelques minutes.',
+    'err.upstream': 'Le service météo n’a pas répondu. Réessayez dans un instant.',
+    'err.detail': 'Détails : {reason}',
+    stale: 'Les données en direct sont temporairement indisponibles. Affichage des données enregistrées à {time}.',
     'geo.none': 'Votre navigateur ne gère pas la localisation. Utilisez la recherche.', 'geo.denied': 'Autorisation de localisation refusée. Utilisez la recherche ou la carte.',
     yourLocation: 'Votre position', noMatches: 'Aucun résultat', pin: 'Point {lat}, {lon}',
   },
@@ -385,7 +397,7 @@ const I18N = {
     'adv.drying': 'Der Boden trocknet aus. Plane, in ein bis zwei Tagen zu gießen, besonders bei flachen Wurzeln.',
     'adv.et': ' Der Verdunstungsbedarf an diesem Tag beträgt etwa {mm} mm.',
     availableWater: 'des verfügbaren Wassers',
-    'tile.air': 'Lufttemperatur', 'tile.soilTemp': 'Bodentemp. (6 cm)', 'tile.rh': 'Luftfeuchte', 'tile.wind': 'Wind · Böen {g} km/h',
+    'tile.air': 'Lufttemperatur', 'tile.soilTemp': 'Bodentemp. (6 cm)', 'tile.rh': 'Luftfeuchte', 'tile.wind': 'Wind · Böen {g}',
     'tile.rain': 'Regen diese Stunde · {mm} mm in 48 h', 'tile.rz': 'Feuchte der Wurzelzone',
     'rel.future': 'Vorhersage · in {s}', 'rel.past': 'Vergangenheit · vor {s}', 'unit.d': 'T', 'unit.h': 'Std',
     soilProfile: 'Bodenprofil', roots: 'Wurzeln bis {n} cm', soilImgAria: 'Bodenfeuchte nach Tiefe, {when}',
@@ -407,6 +419,10 @@ const I18N = {
     'err.html': 'Der Server hat keine Daten geliefert (HTTP {code}). Starte ihn mit „node server.js“ und öffne http://localhost:3000 im Browser, nicht die HTML-Datei direkt.',
     'err.nodata': 'Für diese Stelle gibt es keine Bodenfeuchtedaten (vielleicht Wasser oder Eis). Versuche einen Punkt an Land.',
     'err.load': 'Daten konnten nicht geladen werden: {msg}',
+    'err.rate': 'Der Wetterdienst (Open-Meteo) begrenzt gerade die Anfragen. Bitte versuche es in ein paar Minuten erneut.',
+    'err.upstream': 'Der Wetterdienst hat nicht geantwortet. Bitte versuche es gleich noch einmal.',
+    'err.detail': 'Details: {reason}',
+    stale: 'Live-Daten sind vorübergehend nicht verfügbar. Angezeigt werden die um {time} gespeicherten Daten.',
     'geo.none': 'Dein Browser unterstützt keine Standortbestimmung. Nutze die Suche.', 'geo.denied': 'Standortzugriff verweigert. Nutze die Suche oder die Karte.',
     yourLocation: 'Dein Standort', noMatches: 'Keine Treffer', pin: 'Punkt {lat}, {lon}',
   },
@@ -431,7 +447,7 @@ const I18N = {
     'adv.drying': 'O solo está secando. Planeje regar em um ou dois dias, principalmente se as raízes forem rasas.',
     'adv.et': ' A demanda evaporativa desse dia é de cerca de {mm} mm.',
     availableWater: 'da água disponível',
-    'tile.air': 'Temperatura do ar', 'tile.soilTemp': 'Temp. do solo (6 cm)', 'tile.rh': 'Umidade do ar', 'tile.wind': 'Vento · rajadas {g} km/h',
+    'tile.air': 'Temperatura do ar', 'tile.soilTemp': 'Temp. do solo (6 cm)', 'tile.rh': 'Umidade do ar', 'tile.wind': 'Vento · rajadas {g}',
     'tile.rain': 'Chuva nesta hora · {mm} mm em 48 h', 'tile.rz': 'Umidade da zona radicular',
     'rel.future': 'Previsão · daqui a {s}', 'rel.past': 'Passado · há {s}', 'unit.d': 'd', 'unit.h': 'h',
     soilProfile: 'Perfil do solo', roots: 'raízes até {n} cm', soilImgAria: 'Umidade do solo por profundidade em {when}',
@@ -453,54 +469,12 @@ const I18N = {
     'err.html': 'O servidor não respondeu com dados (HTTP {code}). Inicie-o com “node server.js” e abra http://localhost:3000 no navegador, não o arquivo HTML diretamente.',
     'err.nodata': 'Não há dados de umidade do solo para este ponto (pode ser água ou gelo). Tente um ponto em terra firme.',
     'err.load': 'Não foi possível carregar os dados: {msg}',
+    'err.rate': 'O serviço meteorológico (Open-Meteo) está limitando as solicitações no momento. Tente novamente em alguns minutos.',
+    'err.upstream': 'O serviço meteorológico não respondeu. Tente novamente em instantes.',
+    'err.detail': 'Detalhes: {reason}',
+    stale: 'Os dados ao vivo estão temporariamente indisponíveis. Mostrando os dados salvos às {time}.',
     'geo.none': 'Seu navegador não oferece localização. Use a busca.', 'geo.denied': 'Permissão de localização negada. Use a busca ou o mapa.',
     yourLocation: 'Sua localização', noMatches: 'Nenhum resultado', pin: 'Ponto {lat}, {lon}',
-  },
-  bg: {
-    title: 'Влажност на почвата', search: 'Търсене на локация...', searchAria: 'Търсене на локация', locate: 'Избери моето местоположение',
-    mapBtn: 'Карта', mapTitle: 'Изберете място на картата', save: 'Запази', saved: 'Запазено', saveTitle: 'Запазете това място, за да го сравните по-късно',
-    plantAria: 'Вид растение', soilAria: 'Тип почва', langAria: 'Език',
-    'soil.sand': 'Песъчлива почва', 'soil.loam': 'Глинесто-хумусна почва', 'soil.clay': 'Глинеста почва',
-    'plant.general': 'Основни (горни 27 cm)', 'plant.lawn': 'Поляни / треви', 'plant.veg': 'Зеленчукова градина', 'plant.tomato': 'Домати и чушки', 'plant.shrub': 'Храсти и цветя', 'plant.tree': 'Маслинови и овощни дървета',
-    'short.general': 'най-горните 27 cm', 'short.lawn': 'ливади', 'short.veg': 'зеленчуци', 'short.tomato': 'домати и чушки', 'short.shrub': 'храсти и цветя', 'short.tree': 'маслинови и овощни дървета',
-    mapHint: 'Кликнете където и да е върху картата, за да проверите това място', mapLoading: 'Зареждане на карта…',
-    mapFail: 'Картата се нуждае от достъп до интернет до unpkg.com и openstreetmap.org, но те не се заредиха. Търсенето все още работи.',
-    timeControl: 'Контрол на времето', play: 'Възпроизвеждане на времеви отрязък', pause: 'Пауза', playTitle: 'Възпроизвеждане във времето',
-    rangeAria: 'Време: плъзнете, за да видите миналото или прогнозата', now: 'Сега', ago5: 'Преди 5 дни', ahead7: '+7 дни', loading: 'Зареждане…',
-    footer: 'Данни: {link} моделни данни (а не от физически сензор), мрежа с разделителна способност ~10 км. Предварително зададените параметри за растенията и почвата представляват приблизителни, типични стойности.',
-    'st.thirsty': 'Напълно суха', 'st.drying': 'Изсъхва', 'st.happy': 'Добра влажност', 'st.saturated': 'Подгизнала',
-    'adv.saturated': 'Почвата е на или над капацитета за влажност на полето. Пропуснете поливането: излишната вода ще се оттече или ще се отцеди под корените.',
-    'adv.happyDry': 'Достатъчно вода, достъпна за растенията от тип {plant}. Прогнозата е да падне под прага за поливане около {when}.',
-    'adv.happyOk': 'Достатъчно вода, достъпна за растенията от тип {plant}. Не е необходимо поливане в рамките на прогнозния период.',
-    'adv.rain': 'Почвата е суха, но се прогнозират около {mm} мм дъжд през следващите 48 часа. Обмислете да изчакате за поливане.',
-    'adv.thirsty': 'Риск от воден стрес за растения от тип {plant}. Поливайте обилно и скоро.',
-    'adv.drying': 'Почвата се изсушава. Планирайте да поливате в рамките на ден или два, особено ако корените са дълбоки.',
-    'adv.et': 'Водната изпаряемост през този ден е около {mm} mm.',
-    availableWater: 'от наличната вода',
-    'tile.air': 'Температура на въздуха', 'tile.soilTemp': 'Температура на почвата (6 cm)', 'tile.rh': 'Влажност на въздуха', 'tile.wind': 'Вятър · пориви {g} км/ч',
-    'tile.rain': 'Дъжд този час · {mm} mm следващи 48 h', 'tile.rz': 'Влажност в зоната на корените',
-    'rel.future': 'Прогноза · в {s}', 'rel.past': 'Минало · {s} назад', 'unit.d': 'д', 'unit.h': 'ч',
-    soilProfile: 'Профил на почвата', roots: 'корени до {n} cm', soilImgAria: 'Влажност на почвата по дълбочина в {when}',
-    soilNote: 'Слоевете не са изобразени в мащаб. Числата са обемна влажност. Пунктирната линия показва колко дълбоко достигат корените на растението.',
-    chartTitle: 'Влажност на почвата · последни 5 дни и 7-дневна прогноза',
-    'lg.rz': 'Зона на корените (0–{n} cm)', 'lg.surface': 'Повърхност (0–1 cm)', 'lg.deep': 'Дълбочина (27–81 cm)', rzShort: 'Зона на корените',
-    legendHint: 'Съвет: щракнете или докоснете име, за да покажете или скриете реда му · щракнете или докоснете диаграмата, за да преминете към този момент',
-    'c.past': 'минали 5 дни', 'c.forecast': 'прогноза', 'c.fc': 'полев капацитет', 'c.thr': 'вода под това', 'c.wp': 'точка на уволнение', 'c.now': 'сега',
-    chartAria: 'Влажност на почвата през времето. Използвайте левите и десните стрелки, за да се придвижите през времето.', 'tip.rain': 'Дъжд {mm} mm',
-    viewTable: 'Преглед като таблица', 'tbl.day': 'Ден', 'tbl.rz': 'Зона на корените', 'tbl.surface': 'Повърхност', 'tbl.deep': 'Дълбочина', 'tbl.rain': 'Дъжд mm', 'tbl.maxmin': 'Макс / мин',
-    'tbl.caption': 'Средна дневна влажност на почвата и времето',
-    daysTitle: 'Дневен преглед · изберете ден', today: 'днес', et: 'ET', hourByHour: 'час по час',
-    'm.rain': 'Дъжд', 'm.temp': 'Температура на въздуха', 'm.wind': 'Вятър',
-    miniHint: 'Задръжте курсора на мишката или докоснете диаграма, за да прочетете стойностите; щракнете, за да преминете през цялата страница към съответния час.', miniAria: '{title} по час',
-    removeAria: 'Премахване {name}', compare: 'Сравни',
-    cmpTitle: 'Сравни запазените места · {plant} · {soil} · сега', cmpAvail: 'налична влажност', cmpRain: 'Дъжд през следващите 48 ч: {mm} mm',
-    cmpNote: 'Линията показва влажността в кореновата зона отпреди 5 дни до следващите 7 дни; пунктираната хоризонтална линия е нивото „поливане под това ниво“. Щракнете върху карта, за да отворите това място.',
-    cmpFail: 'Не можа да се зареди: {msg}',
-    'err.html': 'Сървърът не отговори с данни (HTTP {code}). Стартирайте го с "node server.js" и отворете http://localhost:3000 в браузъра, а не директно HTML файла.',
-    'err.nodata': 'Няма данни за влажността на почвата за това място (възможно е да е вода или лед). Опитайте точка на сушата.',
-    'err.load': 'Не можаха да се заредят данните: {msg}',
-    'geo.none': 'Вашият браузър не поддържа местоположение. Използвайте полето за търсене вместо това.', 'geo.denied': 'Разрешението за местоположение е отказано. Използвайте полето за търсене или картата вместо това.',
-    yourLocation: 'Вашето местоположение', noMatches: 'Няма съвпадения', pin: 'Отбележи {lat}, {lon}',
   },
 };
 
@@ -607,19 +581,130 @@ const A = i => analyze(state.data, state.rz, i, SOILS[state.soil], state.plant);
 
 // ---------- data ----------
 const wcache = new Map();
+
+// Two copies of the same shaping code exist on purpose: server.js uses its own when it fetches, and this one is
+// used when the browser has to ask Open-Meteo directly. Keep buildQuery() / shapeWeather() identical in both files.
+const W_LAYERS = [
+  { key: 'soil_moisture_0_to_1cm', label: '0–1 cm', from: 0, to: 1 },
+  { key: 'soil_moisture_1_to_3cm', label: '1–3 cm', from: 1, to: 3 },
+  { key: 'soil_moisture_3_to_9cm', label: '3–9 cm', from: 3, to: 9 },
+  { key: 'soil_moisture_9_to_27cm', label: '9–27 cm', from: 9, to: 27 },
+  { key: 'soil_moisture_27_to_81cm', label: '27–81 cm', from: 27, to: 81 },
+];
+const wRound = (n, d = 1) => (n == null ? null : Math.round(n * 10 ** d) / 10 ** d);
+const wCol = (arr, d = 1) => arr.map(v => wRound(v, d));
+function buildQuery(lat, lon) {
+  return new URLSearchParams({
+    latitude: lat.toFixed(2),
+    longitude: lon.toFixed(2),
+    current: 'temperature_2m',
+    hourly: [
+      ...W_LAYERS.map(l => l.key),
+      'soil_temperature_6cm', 'temperature_2m', 'relative_humidity_2m', 'precipitation',
+      'wind_speed_10m', 'wind_gusts_10m', 'wind_direction_10m', 'is_day',
+    ].join(','),
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,et0_fao_evapotranspiration',
+    past_days: '5',
+    forecast_days: '7',
+    timezone: 'auto',
+    wind_speed_unit: 'kmh',
+  });
+}
+function shapeWeather(raw, lat, lon) {
+  const h = raw.hourly;
+  let nowIdx = 0;
+  for (let i = 0; i < h.time.length; i++) if (h.time[i] <= raw.current.time) nowIdx = i;
+  return {
+    location: { lat, lon, timezone: raw.timezone, elevation: raw.elevation },
+    nowIdx,
+    layers: W_LAYERS.map(({ label, from, to }) => ({ label, from, to })),
+    hourly: {
+      time: h.time,
+      m: W_LAYERS.map(l => wCol(h[l.key], 3)),
+      soilTemp: wCol(h.soil_temperature_6cm),
+      temp: wCol(h.temperature_2m),
+      rh: wCol(h.relative_humidity_2m, 0),
+      rain: wCol(h.precipitation),
+      wind: wCol(h.wind_speed_10m),
+      gust: wCol(h.wind_gusts_10m),
+      dir: wCol(h.wind_direction_10m, 0),
+      isDay: h.is_day,
+    },
+    daily: raw.daily.time.map((d, i) => ({
+      date: d,
+      tMax: raw.daily.temperature_2m_max[i],
+      tMin: raw.daily.temperature_2m_min[i],
+      rain: raw.daily.precipitation_sum[i],
+      wind: raw.daily.wind_speed_10m_max[i],
+      et0: raw.daily.et0_fao_evapotranspiration[i],
+    })),
+    source: 'Open-Meteo.com',
+  };
+}
+
+// An error that remembers why the weather service refused (so we can explain it in the user's language).
+function apiError(status, body) {
+  const e = new Error((body && body.reason) || `HTTP ${status}`);
+  e.code = status === 429 ? 'rate_limited' : 'upstream';
+  e.reason = (body && typeof body.reason === 'string') ? body.reason : '';
+  return e;
+}
+function friendly(e) {
+  if (e.code === 'rate_limited') return t('err.rate') + (e.reason ? ' ' + t('err.detail', { reason: e.reason }) : '');
+  if (e.code === 'upstream') return t('err.upstream') + (e.reason ? ' ' + t('err.detail', { reason: e.reason }) : '');
+  return e.message;
+}
+const safeJSON = async r => { try { return await r.json(); } catch { return null; } };
+
+// 1st choice: our own server (cached and shared by all visitors).
+async function weatherViaServer(p) {
+  let r;
+  try { r = await fetch(`/api/weather?lat=${p.lat}&lon=${p.lon}`); }
+  catch { const e = apiError(0, null); e.code = 'upstream'; e.fallback = true; throw e; }   // server unreachable (e.g. a sleeping free host)
+  const text = await r.text();
+  let d = null;
+  try { d = JSON.parse(text); } catch {}
+  if (r.status === 429 || r.status >= 500) { const e = apiError(r.status, d); e.fallback = true; throw e; }
+  if (!d) throw new Error(t('err.html', { code: r.status }));
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+// 2nd choice: ask Open-Meteo straight from this browser. Its limits are per IP address, so this uses the
+// visitor's own allowance instead of the (possibly crowded) address of the hosting provider.
+async function weatherViaBrowser(p) {
+  const lat = Math.round(p.lat * 100) / 100, lon = Math.round(p.lon * 100) / 100;
+  let r;
+  try { r = await fetch(`https://api.open-meteo.com/v1/forecast?${buildQuery(lat, lon)}`); }
+  catch { throw apiError(0, null); }
+  if (!r.ok) throw apiError(r.status, await safeJSON(r));
+  return { ...shapeWeather(await r.json(), lat, lon), fetchedAt: new Date().toISOString(), stale: false };
+}
+
 async function fetchWeather(p) {
   const key = `${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;
   const hit = wcache.get(key);
   if (hit && Date.now() - hit.t < 10 * 60e3) return hit.d;
-  const r = await fetch(`/api/weather?lat=${p.lat}&lon=${p.lon}`);
-  const text = await r.text();
   let d;
-  try { d = JSON.parse(text); }
-  catch { throw new Error(t('err.html', { code: r.status })); }
-  if (!r.ok) throw new Error(d.error || 'Request failed');
+  try { d = await weatherViaServer(p); }
+  catch (e) {
+    if (!e.fallback) throw e;
+    try { d = await weatherViaBrowser(p); }
+    catch (e2) { throw (e2.reason || !e.reason) ? e2 : e; }   // keep whichever error explains more
+  }
   if (d.hourly.m[0][d.nowIdx] == null) throw new Error(t('err.nodata'));
   wcache.set(key, { t: Date.now(), d });
   return d;
+}
+
+async function searchPlaces(q) {
+  try {
+    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&lang=${state.lang}`);
+    if (r.ok) return (await r.json()).results;
+  } catch {}
+  // server couldn't search (rate limit / asleep): ask the geocoder directly
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${new URLSearchParams({ name: q, count: '6', language: state.lang, format: 'json' })}`);
+  if (!r.ok) throw apiError(r.status, await safeJSON(r));
+  return ((await r.json()).results || []).map(x => ({ name: x.name, admin: x.admin1 || '', country: x.country || '', lat: x.latitude, lon: x.longitude }));
 }
 
 // ---------- soil profile ----------
@@ -940,7 +1025,9 @@ function togglePlay() {
 
 // ---------- page skeleton ----------
 function renderApp() {
+  const staleTime = state.data.stale ? new Date(state.data.fetchedAt).toLocaleTimeString(LANGS[state.lang].locale, { hour: '2-digit', minute: '2-digit' }) : '';
   $('#app').innerHTML = `
+  ${state.data.stale ? `<p class="banner" role="status">⚠️ ${esc(t('stale', { time: staleTime }))}</p>` : ''}
   <div class="grid">
     <section class="card"><h2>${esc(t('soilProfile'))}</h2><div id="soilPanel"></div>
       <p class="note">${esc(t('soilNote'))}</p></section>
@@ -1029,7 +1116,7 @@ async function load() {
   } catch (e) {
     state.data = null;
     $('#scrub').hidden = true;
-    app.innerHTML = `<div class="err">${esc(t('err.load', { msg: e.message }))}</div>`;
+    app.innerHTML = `<div class="err">${esc(t('err.load', { msg: friendly(e) }))}</div>`;
   }
   app.style.opacity = 1;
 }
@@ -1066,7 +1153,7 @@ function renderCompare() {
   state.saved.forEach(async (p, i) => {
     let html;
     try { const d = await fetchWeather(p); html = cmpCardHTML(d, rzSeries(d, PLANTS[state.plant])); }
-    catch (e) { html = esc(t('cmpFail', { msg: e.message })); }
+    catch (e) { html = esc(t('cmpFail', { msg: friendly(e) })); }
     if (token !== cmpToken) return;
     const slot = $(`#cmp${i}`);
     if (slot) { slot.className = ''; slot.style.display = 'block'; slot.innerHTML = html; }
@@ -1133,7 +1220,7 @@ $('#q').addEventListener('input', e => {
   if (q.trim().length < 2) { $('#results').hidden = true; return; }
   searchTimer = setTimeout(async () => {
     try {
-      const { results } = await (await fetch(`/api/search?q=${encodeURIComponent(q)}&lang=${state.lang}`)).json();
+      const results = await searchPlaces(q);
       lastResults = results; hl = results.length ? 0 : -1;
       const box = $('#results');
       box.innerHTML = results.map((r, i) => `<div data-i="${i}" class="${i === hl ? 'hl' : ''}">${esc(r.name)} <small>${esc([r.admin, r.country].filter(Boolean).join(', '))}</small></div>`).join('') || `<div><small>${esc(t('noMatches'))}</small></div>`;
