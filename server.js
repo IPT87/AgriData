@@ -159,7 +159,7 @@ async function handleWeather(params) {
 }
 
 // UI languages the page offers; place names come back in the chosen one.
-const LANGS = ['en', 'es', 'fr', 'de', 'pt'];
+const LANGS = ['en', 'es', 'fr', 'de', 'pt', 'bg'];
 const langOf = params => (LANGS.includes(params.get('lang')) ? params.get('lang') : 'en');
 
 async function handleSearch(params) {

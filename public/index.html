@@ -33,11 +33,12 @@
   .muted { color: var(--ink2); }
 
   header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
-  h1 { font-size: 1.3rem; margin: 0 auto 0 0; min-width: 250px; white-space: nowrap; }
-  .search { position: relative; flex: 1 1 160px; min-width: 160px; max-width: 360px; }
+  h1 { font-size: 1.3rem; margin: 0 auto 0 0; min-width: 262px; white-space: nowrap; }
+  .search { position: relative; flex: 1 1 150px; min-width: 150px; max-width: 360px; }
   /* fixed control widths so the header doesn't reflow when the language (and label lengths) change */
   header input, header select, header button { font-size: .95rem; }
-  #plant { width: 220px; } #soil { width: 138px; } #lang { width: 110px; }
+  #plant { width: 220px; } #soil { width: 180px; } #lang { width: 128px; }
+  header select { font-size: .9rem; }
   #locate { min-width: 42px; } #mapBtn { min-width: 88px; } #saveBtn { min-width: 138px; }
   header select { text-overflow: ellipsis; }
   input, select, button { font: inherit; color: var(--ink); background: var(--card);
@@ -223,6 +224,7 @@ const LANGS = {
   fr: { label: 'Français', locale: 'fr-FR' },
   de: { label: 'Deutsch', locale: 'de-DE' },
   pt: { label: 'Português', locale: 'pt-BR' },
+  bg: { label: 'Български', locale: 'bg-BG' },
 };
 // To add a language: add it to LANGS and copy one block below with all keys translated.
 const I18N = {
@@ -247,6 +249,7 @@ const I18N = {
     'adv.drying': 'Soil is drying out. Plan to water within a day or two, especially if roots are shallow.',
     'adv.et': ' Evaporative demand that day is about {mm} mm.',
     availableWater: 'of available water',
+    'u.mm': 'mm', 'u.kmh': 'km/h', 'u.h': 'h', compass: 'N,NE,E,SE,S,SW,W,NW',
     'tile.air': 'Air temperature', 'tile.soilTemp': 'Soil temp (6 cm)', 'tile.rh': 'Air humidity', 'tile.wind': 'Wind · gusts {g}',
     'tile.rain': 'Rain this hour · {mm} mm next 48 h', 'tile.rz': 'Root-zone moisture',
     'rel.future': 'Forecast · in {s}', 'rel.past': 'Past · {s} ago', 'unit.d': 'd', 'unit.h': 'h',
@@ -297,6 +300,7 @@ const I18N = {
     'adv.drying': 'El suelo se está secando. Planea regar en uno o dos días, sobre todo si las raíces son superficiales.',
     'adv.et': ' La demanda evaporativa de ese día ronda los {mm} mm.',
     availableWater: 'del agua disponible',
+    'u.mm': 'mm', 'u.kmh': 'km/h', 'u.h': 'h', compass: 'N,NE,E,SE,S,SO,O,NO',
     'tile.air': 'Temperatura del aire', 'tile.soilTemp': 'Temp. del suelo (6 cm)', 'tile.rh': 'Humedad del aire', 'tile.wind': 'Viento · rachas {g}',
     'tile.rain': 'Lluvia esta hora · {mm} mm en 48 h', 'tile.rz': 'Humedad de la zona radicular',
     'rel.future': 'Previsión · dentro de {s}', 'rel.past': 'Pasado · hace {s}', 'unit.d': 'd', 'unit.h': 'h',
@@ -347,6 +351,7 @@ const I18N = {
     'adv.drying': 'Le sol se dessèche. Prévoyez d’arroser d’ici un ou deux jours, surtout si les racines sont superficielles.',
     'adv.et': ' La demande évaporative ce jour-là est d’environ {mm} mm.',
     availableWater: 'd’eau disponible',
+    'u.mm': 'mm', 'u.kmh': 'km/h', 'u.h': 'h', compass: 'N,NE,E,SE,S,SO,O,NO',
     'tile.air': 'Température de l’air', 'tile.soilTemp': 'Temp. du sol (6 cm)', 'tile.rh': 'Humidité de l’air', 'tile.wind': 'Vent · rafales {g}',
     'tile.rain': 'Pluie cette heure · {mm} mm sur 48 h', 'tile.rz': 'Humidité de la zone racinaire',
     'rel.future': 'Prévision · dans {s}', 'rel.past': 'Passé · il y a {s}', 'unit.d': 'j', 'unit.h': 'h',
@@ -397,6 +402,7 @@ const I18N = {
     'adv.drying': 'Der Boden trocknet aus. Plane, in ein bis zwei Tagen zu gießen, besonders bei flachen Wurzeln.',
     'adv.et': ' Der Verdunstungsbedarf an diesem Tag beträgt etwa {mm} mm.',
     availableWater: 'des verfügbaren Wassers',
+    'u.mm': 'mm', 'u.kmh': 'km/h', 'u.h': 'h', compass: 'N,NO,O,SO,S,SW,W,NW',
     'tile.air': 'Lufttemperatur', 'tile.soilTemp': 'Bodentemp. (6 cm)', 'tile.rh': 'Luftfeuchte', 'tile.wind': 'Wind · Böen {g}',
     'tile.rain': 'Regen diese Stunde · {mm} mm in 48 h', 'tile.rz': 'Feuchte der Wurzelzone',
     'rel.future': 'Vorhersage · in {s}', 'rel.past': 'Vergangenheit · vor {s}', 'unit.d': 'T', 'unit.h': 'Std',
@@ -426,6 +432,58 @@ const I18N = {
     'geo.none': 'Dein Browser unterstützt keine Standortbestimmung. Nutze die Suche.', 'geo.denied': 'Standortzugriff verweigert. Nutze die Suche oder die Karte.',
     yourLocation: 'Dein Standort', noMatches: 'Keine Treffer', pin: 'Punkt {lat}, {lon}',
   },
+  bg: {
+    title: 'Влажност на почвата', search: 'Търсене на място…', searchAria: 'Търсене на място', locate: 'Използвай моето местоположение',
+    mapBtn: 'Карта', mapTitle: 'Избери място на картата', save: 'Запази', saved: 'Запазено', saveTitle: 'Запази това място, за да го сравниш по-късно',
+    plantAria: 'Вид растение', soilAria: 'Вид почва', langAria: 'Език',
+    'soil.sand': 'Песъчлива почва', 'soil.loam': 'Хумусна почва', 'soil.clay': 'Глинеста почва',
+    'plant.general': 'Общо (горните 27 см)', 'plant.lawn': 'Тревна площ', 'plant.veg': 'Зеленчукова градина', 'plant.tomato': 'Домати и чушки', 'plant.shrub': 'Храсти и цветя', 'plant.tree': 'Маслини и плодни дървета',
+    'short.general': 'горните 27 см', 'short.lawn': 'тревната площ', 'short.veg': 'зеленчуците', 'short.tomato': 'доматите и чушките', 'short.shrub': 'храстите и цветята', 'short.tree': 'дърветата',
+    mapHint: 'Кликни където и да е на картата, за да провериш мястото', mapLoading: 'Зареждане на картата…',
+    mapFail: 'Картата изисква достъп до unpkg.com и openstreetmap.org, които не се заредиха. Търсенето продължава да работи.',
+    timeControl: 'Управление на времето', play: 'Пусни ускорено възпроизвеждане', pause: 'Пауза', playTitle: 'Преминаване през времето',
+
+    rangeAria: 'Време: плъзни, за да видиш изминали дни. или прогнозата', now: 'Сега', ago5: 'преди 5 дни', ahead7: '+7 дни', loading: 'Зареждане…',
+    footer: 'Данни: {link}, данни от модели (не от физически сензор), решетка от ~10 км. Настройките за растения и почви са груби, типични стойности.',
+    'st.thirsty': 'Напълно суха', 'st.drying': 'Изсъхва', 'st.happy': 'Добре влажност', 'st.saturated': 'Подгизнала',
+    'adv.saturated': 'Почвата е на или над полския воден капацитет. Не поливайте: излишната вода ще се оттече или ще се просмуче под корените.',
+    'adv.happyDry': 'Има достатъчно достъпна за растенията вода за {plant}. Очаква се да падне под прага за поливане около {when}.',
+    'adv.happyOk': 'Има достатъчно достъпна за растенията вода за {plant}. През периода на прогнозата не е нужно поливане.',
+    'adv.rain': 'Почвата е суха, но през следващите 48 часа се очакват около {mm} мм дъжд. Помислете дали да не изчакате с поливането.',
+    'adv.thirsty': 'Риск от воден стрес за {plant}. Поливайте обилно и скоро.',
+    'adv.drying': 'Почвата изсъхва. Планирайте поливане в рамките на ден-два, особено ако корените са плитки.',
+    'adv.et': ' Изпаренията за този ден са около {mm} мм.',
+    availableWater: 'от наличната вода',
+    'u.mm': 'мм', 'u.kmh': 'км/ч', 'u.h': 'ч', compass: 'С,СИ,И,ЮИ,Ю,ЮЗ,З,СЗ',
+    'tile.air': 'Температура на въздуха', 'tile.soilTemp': 'Темп. на почвата (6 см)', 'tile.rh': 'Влажност на въздуха', 'tile.wind': 'Вятър · пориви {g}',
+    'tile.rain': 'Дъжд в този час · {mm} мм за 48 ч', 'tile.rz': 'Влажност на кореновата зона',
+    'rel.future': 'Прогноза · след {s}', 'rel.past': 'Минало · преди {s}', 'unit.d': 'д', 'unit.h': 'ч',
+    soilProfile: 'Почвен профил', roots: 'корени до {n} см', soilImgAria: 'Влажност на почвата по дълбочина на {when}',
+    soilNote: 'Слоевете не са в мащаб. Числата са обемно съдържание на вода. Пунктираната линия показва докъде стигат корените на растенията ви.',
+    chartTitle: 'Влажност на почвата · последните 5 дни и прогноза за 7 дни',
+    'lg.rz': 'Коренова зона (0–{n} см)', 'lg.surface': 'Повърхност (0–1 см)', 'lg.deep': 'Дълбочина (27–81 см)', rzShort: 'Коренова зона',
+    legendHint: 'Съвет: кликни или докосни елемент, за да покажеш или скриеш линията му · кликни или докосни графиката, за да отидеш на този момент',
+    'c.past': 'последните 5 дни', 'c.forecast': 'прогноза', 'c.fc': 'полски воден капацитет', 'c.thr': 'поливайте при нива под тези стойности', 'c.wp': 'точка на увяхване', 'c.now': 'сега',
+    chartAria: 'Влажност на почвата във времето. Използвай стрелките наляво и надясно, за да се движиш във времето.', 'tip.rain': 'Дъжд {mm} мм',
+    viewTable: 'Покажи като таблица', 'tbl.day': 'Ден', 'tbl.rz': 'Коренова зона', 'tbl.surface': 'Повърхност', 'tbl.deep': 'Дълбочина', 'tbl.rain': 'Дъжд мм', 'tbl.maxmin': 'Макс / мин',
+    'tbl.caption': 'Средна дневна влажност на почвата и време',
+    daysTitle: 'Дневна прогноза · избери ден', today: 'днес', et: 'ЕТ', hourByHour: 'час по час',
+    'm.rain': 'Дъжд', 'm.temp': 'Температура на въздуха', 'm.wind': 'Вятър',
+    miniHint: 'Задръж курсора или докосни графика, за да прочетеш стойностите; кликни, за да прехвърлиш цялата страница към този час.', miniAria: '{title} по часове',
+    removeAria: 'Премахни {name}', compare: 'Сравни',
+    cmpTitle: 'Сравнение на запазени места · {plant} · {soil} · сега', cmpAvail: 'налична вода', cmpRain: 'Дъжд през следващите 48 ч: {mm} мм',
+    cmpNote: 'Линията показва влажността на кореновата зона от преди 5 дни до 7 дни напред; пунктираната хоризонтална линия е нивото „поливайте при нива под тези стойности“. Кликни върху картата, за да отвориш това място.',
+    cmpFail: 'Неуспешно зареждане: {msg}',
+    'err.html': 'Сървърът не върна данни (HTTP {code}). Стартирай го с „node server.js“ и отвори http://localhost:3000 в браузъра, а не директно HTML файла.',
+    'err.nodata': 'Няма данни за влажността на почвата за това място (може да е вода или лед). Опитай точка на сушата.',
+    'err.load': 'Неуспешно зареждане на данните: {msg}',
+    'err.rate': 'Метеорологичната услуга (Open-Meteo) ограничава заявките в момента. Опитай отново след няколко минути.',
+    'err.upstream': 'Метеорологичната услуга не отговаря. Опитай отново след малко.',
+    'err.detail': 'Подробности: {reason}',
+    stale: 'Данните на живо временно не са налични. Показани са данните, запазени в {time}.',
+    'geo.none': 'Браузърът ви не поддържа определяне на местоположение. Използвайте полето за търсене.', 'geo.denied': 'Достъпът до местоположението е отказан. Използвайте търсенето или картата.',
+    yourLocation: 'Твоето местоположение', noMatches: 'Няма съвпадения', pin: 'Точка {lat}, {lon}',
+  },
   pt: {
     title: 'Umidade do solo', search: 'Buscar um lugar…', searchAria: 'Buscar um lugar', locate: 'Usar minha localização',
     mapBtn: 'Mapa', mapTitle: 'Escolher um lugar no mapa', save: 'Salvar', saved: 'Salvo', saveTitle: 'Salve este lugar para comparar depois',
@@ -447,6 +505,7 @@ const I18N = {
     'adv.drying': 'O solo está secando. Planeje regar em um ou dois dias, principalmente se as raízes forem rasas.',
     'adv.et': ' A demanda evaporativa desse dia é de cerca de {mm} mm.',
     availableWater: 'da água disponível',
+    'u.mm': 'mm', 'u.kmh': 'km/h', 'u.h': 'h', compass: 'N,NE,L,SE,S,SO,O,NO',
     'tile.air': 'Temperatura do ar', 'tile.soilTemp': 'Temp. do solo (6 cm)', 'tile.rh': 'Umidade do ar', 'tile.wind': 'Vento · rajadas {g}',
     'tile.rain': 'Chuva nesta hora · {mm} mm em 48 h', 'tile.rz': 'Umidade da zona radicular',
     'rel.future': 'Previsão · daqui a {s}', 'rel.past': 'Passado · há {s}', 'unit.d': 'd', 'unit.h': 'h',
@@ -522,7 +581,7 @@ const plantName = k => t('plant.' + k), plantShort = k => t('short.' + k), soilN
 
 // ---------- formatting ----------
 const pct = v => (v * 100).toFixed(0) + '%';
-const dirName = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(d / 45) % 8];
+const dirName = d => t('compass').split(',')[Math.round(d / 45) % 8];
 const dayDate = iso => new Date(iso.slice(0, 10) + 'T12:00');
 const fmtDay = (iso, o) => dayDate(iso).toLocaleDateString(LANGS[state.lang].locale, o);
 const hh = iso => iso.slice(11, 16);
@@ -760,8 +819,8 @@ function heroHTML(i) {
       <div class="tile"><b>${fx(h.temp[i], 1)}°C</b><span>${esc(t('tile.air'))}</span></div>
       <div class="tile"><b>${fx(h.soilTemp[i], 1)}°C</b><span>${esc(t('tile.soilTemp'))}</span></div>
       <div class="tile"><b>${h.rh[i]}%</b><span>${esc(t('tile.rh'))}</span></div>
-      <div class="tile"><b>${h.wind[i].toFixed(0)} km/h ${dirName(h.dir[i])}</b><span>${esc(t('tile.wind', { g: h.gust[i].toFixed(0) }))}</span></div>
-      <div class="tile"><b>${fx(h.rain[i] || 0, 1)} mm</b><span>${esc(t('tile.rain', { mm: a.rain48.toFixed(0) }))}</span></div>
+      <div class="tile"><b>${h.wind[i].toFixed(0)} ${esc(t('u.kmh'))} ${esc(dirName(h.dir[i]))}</b><span>${esc(t('tile.wind', { g: h.gust[i].toFixed(0) }))}</span></div>
+      <div class="tile"><b>${fx(h.rain[i] || 0, 1)} ${esc(t('u.mm'))}</b><span>${esc(t('tile.rain', { mm: a.rain48.toFixed(0) }))}</span></div>
       <div class="tile"><b>${pct(state.rz[i])}</b><span>${esc(t('tile.rz'))}</span></div>
     </div>`;
 }
@@ -906,7 +965,7 @@ function renderDays() {
       <b>${esc(fmtDay(x.date, { weekday: 'short', day: 'numeric' }))}${x.date === todayDate() ? ` <span class="td">· ${esc(t('today'))}</span>` : ''}</b>
       ${x.tMax.toFixed(0)}° / ${x.tMin.toFixed(0)}°
       <span class="bar"><i style="width:${((x.rain || 0) / maxRain * 100).toFixed(0)}%"></i></span>
-      💧 ${fx(x.rain || 0, 1)} mm<br>💨 ${x.wind.toFixed(0)} km/h<br>☀️ ${esc(t('et'))} ${x.et0 != null ? fx(x.et0, 1) : '–'}
+      💧 ${fx(x.rain || 0, 1)} ${esc(t('u.mm'))}<br>💨 ${x.wind.toFixed(0)} ${esc(t('u.kmh'))}<br>☀️ ${esc(t('et'))} ${x.et0 != null ? fx(x.et0, 1) : '–'}
     </button>`).join('');
   const sel = box.querySelector('[aria-pressed="true"]');
   if (sel && box.scrollTo) box.scrollTo({ left: sel.offsetLeft - box.clientWidth / 2 + sel.clientWidth / 2 });
@@ -922,7 +981,7 @@ function miniChart(spec, vals, startIdx) {
   const y = q => mt + (1 - (q - lo) / ((hi - lo) || 1)) * (H - mt - b);
   let g = '';
   [lo, (lo + hi) / 2, hi].forEach(q => { g += `<line x1="${l}" x2="${W - r}" y1="${y(q)}" y2="${y(q)}" stroke="var(--grid)"/><text x="${l - 5}" y="${y(q) + 4}" text-anchor="end">${spec.tick(q)}</text>`; });
-  [0, 6, 12, 18].forEach(k => { g += `<text x="${x(k)}" y="${H - 5}" text-anchor="middle">${String(k).padStart(2, '0')}h</text>`; });
+  [0, 6, 12, 18].forEach(k => { g += `<text x="${x(k)}" y="${H - 5}" text-anchor="middle">${String(k).padStart(2, '0')}${esc(t('u.h'))}</text>`; });
   if (spec.kind === 'bars') {
     const bw = (W - l - r) / n * 0.7;
     v.forEach((q, i) => { if (q > 0) g += `<rect x="${x(i) - bw / 2}" y="${y(q)}" width="${bw}" height="${y(lo) - y(q)}" rx="2" fill="var(${spec.color})"/>`; });
@@ -943,9 +1002,9 @@ function renderDayDetail() {
   const cw = box.clientWidth || 900, cols = clamp(Math.floor((cw + 12) / 242), 1, 3);
   MINI.W = Math.max(230, Math.floor((cw - 12 * (cols - 1)) / cols));
   const specs = [
-    { id: 'rain', title: t('m.rain'), unit: 'mm', kind: 'bars', color: '--s1', zero: true, minHi: 2, tick: q => fx(q, q < 10 ? 1 : 0), val: q => fx(q, 1), vals: h.rain },
+    { id: 'rain', title: t('m.rain'), unit: t('u.mm'), kind: 'bars', color: '--s1', zero: true, minHi: 2, tick: q => fx(q, q < 10 ? 1 : 0), val: q => fx(q, 1), vals: h.rain },
     { id: 'temp', title: t('m.temp'), unit: '°C', kind: 'line', color: '--s2', tick: q => q.toFixed(0), val: q => fx(q, 1), vals: h.temp },
-    { id: 'wind', title: t('m.wind'), unit: 'km/h', kind: 'line', color: '--s7', zero: true, minHi: 10, tick: q => q.toFixed(0), val: q => q.toFixed(0), vals: h.wind },
+    { id: 'wind', title: t('m.wind'), unit: t('u.kmh'), kind: 'line', color: '--s7', zero: true, minHi: 10, tick: q => q.toFixed(0), val: q => q.toFixed(0), vals: h.wind },
   ];
   box.innerHTML = `<h2 style="margin-top:14px">${esc(fmtDay(day, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${esc(t('hourByHour'))}</h2>
     <div class="minis">${specs.map(sp => `<div class="mini"><h3><span>${esc(sp.title)}</span><span class="ro" data-ro="${sp.id}"></span></h3>${miniChart(sp, sp.vals.slice(s, e), s)}</div>`).join('')}</div>
